@@ -1,1 +1,11 @@
 libAMG*
+
+.myanchor
+build*
+debug*
+*.vscode
+*.samples
+*.exe
+*.bak
+*~
+*.o
