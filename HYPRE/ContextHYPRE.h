@@ -12,6 +12,7 @@
 #include <cassert>
 #include <map>
 #include <mpi.h>
+#include <numeric>
 #include <string>
 #include <vector>
 
