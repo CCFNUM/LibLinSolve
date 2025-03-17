@@ -422,11 +422,11 @@ private:
     const CommState comm_state_;
     const GraphLayout layout_;
 
-    std::vector<Index>::const_iterator globalSortedIndexToRank_(
-        int& dst_rank,
-        std::vector<Index>::const_iterator start_idx, // must be sorted
-        const std::vector<Index>::const_iterator end_idx,
-        const int rank, // of caller
+    Index filterGhostsForOwnerRank_(
+        int& owner_rank,
+        std::vector<Index>::const_iterator ghost_start, // must be sorted
+        const std::vector<Index>::const_iterator ghost_end,
+        const int myrank, // of caller
         const int size,
         const std::vector<Index>& n_local_nodes) const;
 };

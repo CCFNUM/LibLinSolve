@@ -205,47 +205,40 @@ void CRSNodeGraph::getMemoryFootprint(MemoryFootprint& data) const
     }
 }
 
-std::vector<typename CRSNodeGraph::Index>::const_iterator
-CRSNodeGraph::globalSortedIndexToRank_(
-    int& dst_rank,
-    std::vector<typename CRSNodeGraph::Index>::const_iterator start_idx,
-    const std::vector<typename CRSNodeGraph::Index>::const_iterator end_idx,
-    const int rank,
+typename CRSNodeGraph::Index CRSNodeGraph::filterGhostsForOwnerRank_(
+    int& owner_rank,
+    std::vector<typename CRSNodeGraph::Index>::const_iterator ghost_start,
+    const std::vector<typename CRSNodeGraph::Index>::const_iterator ghost_end,
+    const int myrank,
     const int size,
     const std::vector<typename CRSNodeGraph::Index>& n_local_nodes) const
 {
-    Index j_global = this->global_row_offset_ + n_local_nodes[rank];
-    if (this->global_row_offset_ <= *start_idx && *start_idx < j_global)
-    {
-        while (start_idx != end_idx && *start_idx < j_global)
-        {
-            ++start_idx;
-        }
-        dst_rank = rank;
-        return start_idx;
-    }
-    const int r0 = (*start_idx < this->global_row_offset_) ? 0 : rank + 1;
-    const int r1 = (*start_idx < this->global_row_offset_) ? rank : size;
-    j_global = (0 == r0) ? 0 : j_global;
+    const int r0 = (*ghost_start < this->global_row_offset_) ? 0 : myrank + 1;
+    const int r1 = (*ghost_start < this->global_row_offset_) ? myrank : size;
+    Index j_global =
+        (0 == r0) ? 0 : this->global_row_offset_ + n_local_nodes[myrank];
     for (int r = r0; r < r1; r++)
     {
         const Index k_global = j_global + n_local_nodes[r];
-        if (j_global <= *start_idx && *start_idx < k_global)
+        if (j_global <= *ghost_start && *ghost_start < k_global)
         {
-            while (start_idx != end_idx && *start_idx < k_global)
+            Index n_ghosts = 0;
+            while (ghost_start != ghost_end && *ghost_start < k_global)
             {
-                ++start_idx;
+                ++ghost_start;
+                ++n_ghosts;
             }
-            dst_rank = r;
-            return start_idx;
+            owner_rank = r;
+            return n_ghosts;
         }
         j_global = k_global;
     }
-    // clang-format off
-    assert(false &&
-           "CRSNodeGraph::globalSortedIndexToRank_: could not find destination rank");
-    // clang-format on
-    return end_idx;
+
+    // if you end up here something is wrong...
+    assert(
+        false &&
+        "CRSNodeGraph::filterGhostsForOwnerRank_: could not find owner rank");
+    return 0;
 }
 
 void CRSNodeGraph::computePackInfos_()
@@ -277,12 +270,20 @@ void CRSNodeGraph::computePackInfos_()
         for (Index j = row_ptr_[i]; j < row_ptr_[i + 1]; j++)
         {
             const Index j_local = local_idx[j];
-            if (n_owned_nodes_ <= j_local)
+            if (j_local >= n_owned_nodes_) // a ghost
             {
                 const Index j_global = global_idx[j];
                 const auto status = ghost_query.insert(j_global);
-                if (status.second)
+                if (status.second) // push this ghost ID once
                 {
+                    // global index relationship is known, check it is satisfied
+                    // a.) total bound
+                    assert(j_global >= 0);
+                    assert(j_global < global_number_nodes_);
+                    // b.) since this is a ghost, it better not be one of my
+                    // nodes
+                    assert(j_global < global_row_offset_ ||
+                           global_row_offset_ + n_owned_nodes_ <= j_global);
                     global_ghost.push_back(j_global);
                     local_ghost.push_back(j_local);
                 }
@@ -290,17 +291,30 @@ void CRSNodeGraph::computePackInfos_()
         }
     }
     assert(global_ghost.size() == local_ghost.size());
-    // XXX: [fab4100@posteo.net; 2024-10-08] the fewest possible ghost nodes is
-    // given by `global_ghost.size()`.  The member `this->n_ghost_nodes_` could
-    // be set at this point but it is assumed `this->n_ghost_nodes_` is set
-    // previously (typically in `buildGraph_`).  This allows to define a larger
-    // number of ghosts nodes as an upper-bound which may be required in some
-    // cases (e.g. full/reduced stencils in nodeGraph).  To determine the
-    // actual number of required ghosts automatically, set
+    // NOTE: [fab4100@posteo.net; 2024-10-08] the fewest (most compact) possible
+    // number of ghost nodes is given by `global_ghost.size()`.  The member
+    // `this->n_ghost_nodes_` could be set to this value at this point.  It may
+    // not always be possible to enforce this most compact representation
+    // depending on the buildGraph_ implementation that was executed prior to
+    // this method.  To use the most compact number of ghosts the following
+    // switch can be enabled
     //
     // determine_n_ghosts_ = true (default is false)
     //
-    // prior to this method call.
+    // The switch is disabled by default for which it is assumed that
+    // this->n_ghost_nodes_ has been set during buildGraph_ execution.  If the
+    // previously set number of ghosts is smaller than the most compact
+    // described above, the assertion below will be raised.
+    //
+    // Example where number of ghosts must be set externally is the mesh node
+    // graph.  The algorithm implemented for the mesh graph involves manual
+    // ghosting due to interfaces for example.  Since local and global ID's that
+    // are determined in this algorithm depend on the selected nodes, it is not
+    // possible to use the most compact number of ghost nodes as it is possible
+    // that there are "holes" in the ghost section that would lead to indexing
+    // errors in the linear system structure later on. ("Holes" may exist due to
+    // nodes that are selected and used for indices enumeration in the mesh node
+    // graph algorithm but are not actually ghosts.)
     if (this->determine_n_ghosts_)
     {
         this->n_ghost_nodes_ = static_cast<Index>(global_ghost.size());
@@ -313,7 +327,7 @@ void CRSNodeGraph::computePackInfos_()
     std::sort(permute.begin(),
               permute.end(),
               [&global_ghost](const size_t i, const size_t j)
-              { return global_ghost[i] < global_ghost[j]; });
+    { return global_ghost[i] < global_ghost[j]; });
     CRSNodeGraph::permuteInPlace_(global_ghost.data(), permute);
     CRSNodeGraph::permuteInPlace_(local_ghost.data(), permute);
 
@@ -324,17 +338,21 @@ void CRSNodeGraph::computePackInfos_()
     auto g_ghost = global_ghost.cbegin();
     while (g_ghost != global_ghost.end())
     {
-        Index source_rank;
-        const auto end = globalSortedIndexToRank_(source_rank,
-                                                  g_ghost,
-                                                  global_ghost.end(),
-                                                  rank_,
-                                                  size_,
-                                                  rank_n_nodes);
-        while (g_ghost != end)
+        // filter number of ghosts owned by owner_rank that owns these n
+        // consecutive ghost(s) starting at current g_ghost iterator position
+        Index owner_rank;
+        const Index n_ghosts = filterGhostsForOwnerRank_(owner_rank,
+                                                         g_ghost,
+                                                         global_ghost.end(),
+                                                         rank_,
+                                                         size_,
+                                                         rank_n_nodes);
+
+        for (Index i = 0; i < n_ghosts; i++)
         {
-            request_ghosts[source_rank].push_back(*g_ghost++);
-            infos[source_rank].recv_idx.push_back(*l_ghost++);
+            assert(g_ghost != global_ghost.end());
+            request_ghosts[owner_rank].push_back(*g_ghost++);
+            infos[owner_rank].recv_idx.push_back(*l_ghost++);
         }
     }
 
@@ -534,7 +552,7 @@ void CRSNodeGraph::sortPrimaryIndices_()
         std::sort(permute.begin(),
                   permute.end(),
                   [primary_idx](const size_t i, const size_t j)
-                  { return primary_idx[i] < primary_idx[j]; });
+        { return primary_idx[i] < primary_idx[j]; });
         CRSNodeGraph::permuteCopy_(primary_idx.data(), buffer, permute);
 
         if (has_secondary)
