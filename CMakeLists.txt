@@ -38,6 +38,36 @@ target_include_directories(${libLinSolve}
     ${libLinSolveIncludes}
 )
 
+install(TARGETS ${libLinSolve} DESTINATION lib64)
+install(FILES
+  "AMG.h"
+  "HYPRE/ContextHYPRE.h"
+  "HYPRE/HYPRESolver.h"
+  "PETSc/ContextPETSc.h"
+  "PETSc/PETScSolver.h"
+  "coefficients.h"
+  "controlData.h"
+  "linearSolver.h"
+  "linearSolverContext.h"
+  "linearSolverContext.hpp"
+  "matrix/CRSConnectivity.h"
+  "matrix/CRSMatrix.h"
+  "matrix/CRSMatrix.hpp"
+  "matrix/CRSNodeGraph.cpp"
+  "matrix/CRSNodeGraph.h"
+  "matrix/CRSNodeGraphSynchronizer.h"
+  "matrix/layout/memoryLayout.h"
+  "matrix/operators/blockMatrix/blockMatrixDeterminant.hpp"
+  "matrix/operators/blockMatrix/blockMatrixInvert.hpp"
+  "matrix/operators/blockMatrix/blockMatrixOperators.h"
+  "matrix/operators/distributed/CRSMatrixVector.h"
+  "matrix/operators/distributed/CRSResidual.h"
+  "residual.h"
+  "utils/Common.h"
+  "utils/Profiler.h"
+  DESTINATION include
+)
+
 if(DEFINED WITH_FASTMATH AND WITH_FASTMATH)
     string(APPEND CMAKE_CXX_FLAGS_RELEASE " -Ofast -mavx2 -mfma")
     string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -Ofast -mavx2 -mfma")
