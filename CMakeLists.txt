@@ -16,14 +16,14 @@ add_compile_options(
 find_package(Git REQUIRED)
 execute_process(
     COMMAND bash "-c" "git tag --list --sort=-version:refname v-* | head -n1 | sed 's/v-//'"
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     OUTPUT_VARIABLE GIT_DESCRIBE_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" SEMVERSION "${GIT_DESCRIBE_VERSION}")
 string(REGEX MATCH "^([0-9]+)" SOVERSION "${GIT_DESCRIBE_VERSION}")
 if(SEMVERSION)
-    message(STATUS "Setting version based on Git: ${GIT_DESCRIBE_VERSION}")
+    message(STATUS "Setting libLinSolve version based on Git: ${GIT_DESCRIBE_VERSION}")
     set(PROJECT_VERSION_FULL "${GIT_DESCRIBE_VERSION}")
 else()
     message(FATAL_ERROR "Cannot determine library version")
