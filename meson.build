@@ -5,7 +5,9 @@
 # Copyright 2025 CCFNUM HSLU T&A. All Rights Reserved.
 
 project('LinearSolverLibrary', ['cpp', 'c'],
-  version: '0.1.0',
+  version: run_command(
+    'git', 'tag', '--list', '--sort=-version:refname', 'v-*',
+    capture: true, check: true).stdout().splitlines()[0].strip('v-'),
   license: 'BSD-2-Clause',
   default_options: [
     'cpp_std=c++20',
@@ -54,11 +56,15 @@ hdr = include_directories(
   'utils',
 )
 
+soversion = meson.project_version().split('.')[0]
+
 libLinSolve = library('LinSolve',
   src,
   include_directories: hdr,
   dependencies: [mpi_dep, yaml_cpp],
-  install: true
+  install: true,
+  soversion: soversion,
+  version: meson.project_version()
 )
 libs = [libLinSolve]
 

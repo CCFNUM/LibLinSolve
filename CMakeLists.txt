@@ -3,8 +3,8 @@
 # Author     : Fabian Wermelinger
 # Description: CMake build definitions
 # Copyright 2025 CCFNUM HSLU T&A. All Rights Reserved.
-cmake_minimum_required(VERSION 3.10)
-project(LinearSolverLibrary VERSION 0.1.0)
+cmake_minimum_required(VERSION 3.12)
+project(LinearSolverLibrary VERSION 0.0.0) # version is determined via tag
 set(CMAKE_CXX_STANDARD 20)
 
 add_compile_options(
@@ -12,6 +12,22 @@ add_compile_options(
     -Wextra
     -pedantic
 )
+
+find_package(Git REQUIRED)
+execute_process(
+    COMMAND bash "-c" "git tag --list --sort=-version:refname v-* | head -n1 | sed 's/v-//'"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_DESCRIBE_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" SEMVERSION "${GIT_DESCRIBE_VERSION}")
+string(REGEX MATCH "^([0-9]+)" SOVERSION "${GIT_DESCRIBE_VERSION}")
+if(SEMVERSION)
+    message(STATUS "Setting version based on Git: ${GIT_DESCRIBE_VERSION}")
+    set(PROJECT_VERSION_FULL "${GIT_DESCRIBE_VERSION}")
+else()
+    message(FATAL_ERROR "Cannot determine library version")
+endif()
 
 find_package(MPI REQUIRED)
 
@@ -32,6 +48,8 @@ add_library(${libLinSolve} SHARED
     "matrix/CRSNodeGraph.cpp"
     "utils/Profiler.cpp"
 )
+set_target_properties(${libLinSolve}
+    PROPERTIES VERSION ${SEMVERSION} SOVERSION ${SOVERSION})
 target_include_directories(${libLinSolve}
     PRIVATE
     ${MPI_INCLUDE_PATH}
