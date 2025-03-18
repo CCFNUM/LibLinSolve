@@ -14,6 +14,7 @@ project('LinearSolverLibrary', ['cpp', 'c'],
     'b_ndebug=if-release',
     'default_library=shared',
     'warning_level=3',
+    'MPI_WRAPPER=true',
   ]
 )
 
@@ -21,25 +22,17 @@ project('LinearSolverLibrary', ['cpp', 'c'],
 cpp = meson.get_compiler('cpp')
 c = meson.get_compiler('c')
 
+# global compiler flags
 add_global_arguments('-DOMPI_SKIP_MPICXX', language : 'cpp')
-
-# # other options
-# if get_option('IGNORE_UNKNOWN_PRAGMAS')
-#   add_project_arguments('-Wno-unknown-pragmas', language: ['cpp'])
-# endif
 
 # dependencies
 null_dep = dependency('', required : false)
 yaml_cpp = dependency('yaml-cpp', required: true)
-
-# if get_option('MPI_WRAPPER')
-#   mpi_dep = null_dep
-# else
-#   mpi_dep = dependency('mpi', language: 'c', required: true)
-# endif
-# mpi_dep = null_dep
-mpi_dep = dependency('mpi', language: 'c', required: true)
-
+if get_option('MPI_WRAPPER')
+  mpi_dep = null_dep
+else
+  mpi_dep = dependency('mpi', language: 'c', required: true)
+endif
 
 src = [
   'matrix/CRSNodeGraph.cpp',
@@ -57,7 +50,6 @@ hdr = include_directories(
 )
 
 soversion = meson.project_version().split('.')[0]
-
 libLinSolve = library('LinSolve',
   src,
   include_directories: hdr,
@@ -66,9 +58,10 @@ libLinSolve = library('LinSolve',
   soversion: soversion,
   version: meson.project_version()
 )
-libs = [libLinSolve]
 
 fs = import('fs')
+pkg_mod = import('pkgconfig')
+
 if fs.is_dir('libAMG')
   subdir('libAMG')
 endif
@@ -101,11 +94,9 @@ install_headers(
   'utils/Profiler.h',
 )
 
-# create a pkg-config entry
-pkg_mod = import('pkgconfig')
 pkg_mod.generate(
   name: 'LinSolve',
   filebase: 'LinSolve',
   description: 'HSLU linear solver library',
-  libraries: libs
+  libraries: libLinSolve
 )

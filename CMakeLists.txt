@@ -30,6 +30,7 @@ else()
 endif()
 
 find_package(MPI REQUIRED)
+add_compile_options("-DOMPI_SKIP_MPICXX")
 
 set(libLinSolveIncludes
     "${CMAKE_CURRENT_LIST_DIR}"
