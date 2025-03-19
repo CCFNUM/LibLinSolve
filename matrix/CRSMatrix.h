@@ -52,12 +52,15 @@ public:
     // Majority of code depends on a block-structured row-major memory layout.
     // Local conversion is carried out where necessary.  Changing the matrix
     // memory layout in constructors below will most certainly break the code.
-    CRSMatrix(const CRSNodeGraph* graph)
+    CRSMatrix(const CRSNodeGraph* graph, const bool allocate_values = true)
         : CRSConnectivity(graph),
           memory_layout_(graph->getLayout() |
-                         MemoryLayout::MemoryLayout__BlockRowMajor),
-          values_(this->nnz(), static_cast<DataType>(0))
+                         MemoryLayout::MemoryLayout__BlockRowMajor)
     {
+        if (allocate_values)
+        {
+            values_.resize(this->nnz(), static_cast<DataType>(0));
+        }
     }
 
     // Access / on-the-fly operations
