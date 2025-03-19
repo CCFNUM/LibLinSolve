@@ -515,8 +515,7 @@ void CRSNodeGraph::computeGlobalGraphSize_()
             static_cast<unsigned long long>(this->nOwnedNodes()),
             static_cast<unsigned long long>(this->nIndices())};
         unsigned long long global[2] = {0};
-        MPI_Allreduce(
-            &local, &global, 2, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm_);
+        MPI_Allreduce(local, global, 2, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm_);
         global_number_nodes_ = static_cast<Index>(global[0]);
         global_number_indices_ = global[1];
     }
