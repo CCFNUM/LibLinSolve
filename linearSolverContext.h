@@ -303,7 +303,7 @@ public:
     void zeroSystemStorage()
     {
         assert(coeffs_);
-        coeffs_->updateGraph();
+        coeffs_->resizeGraph();
         coeffs_->zeroLHS();
         coeffs_->zeroRHS();
         coeffs_->zeroSOL();

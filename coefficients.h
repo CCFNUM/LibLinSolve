@@ -45,7 +45,7 @@ public:
     coefficients(const CRSNodeGraph* graph, const Index id = 0)
         : CRSMatrix<N>(graph), id_(id)
     {
-        updateGraph();
+        resizeGraph();
         zeroALL();
     }
 
@@ -57,11 +57,10 @@ public:
     void setGraph(const CRSNodeGraph* graph)
     {
         graph_ = graph;
-
-        updateGraph();
+        resizeGraph();
     }
 
-    void updateGraph()
+    void resizeGraph()
     {
         assert(graph_ && graph_->isBuilt()); // MPI data is correct if graph is
                                              // built
@@ -69,7 +68,7 @@ public:
         const Index n_local_coeff = graph_->nOwnedNodes();
         const Index n_local_ghosts = graph_->nGhostNodes();
 
-        this->values_.resize(this->nnz()); // A matrix coefficients
+        this->values_.resize(this->nnz()); // matrix coefficients
         x_.resize(BLOCKSIZE * (n_local_coeff + n_local_ghosts));
         b_.resize(BLOCKSIZE * n_local_coeff);
         r_.resize(BLOCKSIZE * n_local_coeff);
