@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -84,6 +85,33 @@ public:
             cout << "\tMatrix int data:  " << connectivity.sum_byte / MemoryFootprint::BYTE_DIVIDE << " MB\n";
             cout << "\tReduced stencil:  " << std::string(reduced ? "true" : "false") << '\n';
             cout << "\tCoefficients:     " << static_cast<const void*>(ctx_->coeffs().get()) << '\n';
+#ifndef NDEBUG
+            // check for numerical zeros and almost zeros
+            const typename Matrix::DataType zero = std::abs(0.0);
+            const typename Matrix::DataType eps = std::numeric_limits<typename Matrix::DataType>::epsilon();
+            unsigned long long local_zeros[2] = {0};
+            unsigned long long &is_zero = local_zeros[0];
+            unsigned long long &almost_zero = local_zeros[1];
+            for (typename Matrix::DataType c : coeffs.valuesRef()) {
+                c = std::abs(c);
+                if (c == zero) {
+                    ++is_zero;
+                }
+                else if (c <= eps) {
+                    ++almost_zero;
+                }
+            }
+            unsigned long long global_zeros[2] = {0};
+            MPI_Reduce(local_zeros, global_zeros, 2, MPI_UNSIGNED_LONG_LONG, MPI_SUM, 0, ctx_->getCommunicator());
+            const size_t zero_mbyte = global_zeros[0] *
+                                      sizeof(typename Matrix::DataType) /
+                                      MemoryFootprint::BYTE_DIVIDE;
+            const size_t eps_mbyte = global_zeros[1] *
+                                     sizeof(typename Matrix::DataType) /
+                                     MemoryFootprint::BYTE_DIVIDE;
+            cout << "\tN numerical zero: " << global_zeros[0] << " (" << zero_mbyte << " MB)\n";
+            cout << "\tN machine eps.:   " << global_zeros[1] << " (" << eps_mbyte << " MB)\n";
+#endif /* NDEBUG */
             cout << std::endl;
             // clang-format on
         }
