@@ -9,17 +9,27 @@
 #include "CRSNodeGraph.h"
 #include <yaml-cpp/yaml.h>
 
+#if defined _WIN32 || defined __CYGWIN__
+#define LIBAMG_EXPORT __declspec(dllexport)
+#else
+#if __GNUC__ >= 4
+#define LIBAMG_EXPORT __attribute__((visibility("default")))
+#else
+#define LIBAMG_EXPORT
+#endif
+#endif
+
 namespace linearSolver
 {
 
-void* getAMGSolverInstance(const size_t blocksize,
-                           const YAML::Node& node,
-                           const YAML::Node& solver_lookup,
-                           GraphLayout& layout);
-void* getGMRESSolverInstance(const size_t blocksize,
-                             const YAML::Node& node,
-                             const YAML::Node& solver_lookup,
-                             GraphLayout& layout);
+LIBAMG_EXPORT void* getAMGSolverInstance(const size_t blocksize,
+                                         const YAML::Node& node,
+                                         const YAML::Node& solver_lookup,
+                                         GraphLayout& layout);
+LIBAMG_EXPORT void* getGMRESSolverInstance(const size_t blocksize,
+                                           const YAML::Node& node,
+                                           const YAML::Node& solver_lookup,
+                                           GraphLayout& layout);
 
 } /* namespace linearSolver */
 
