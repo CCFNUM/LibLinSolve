@@ -14,7 +14,7 @@ project('LinearSolverLibrary', ['cpp', 'c'],
     'b_ndebug=if-release',
     'default_library=shared',
     'warning_level=3',
-    'MPI_WRAPPER=true',
+    'MPI=mpich',
   ]
 )
 
@@ -26,12 +26,28 @@ c = meson.get_compiler('c')
 add_global_arguments('-DOMPI_SKIP_MPICXX', language : 'cpp')
 
 # dependencies
-null_dep = dependency('', required : false)
 yaml_cpp = dependency('yaml-cpp', required: true)
-if get_option('MPI_WRAPPER')
-  mpi_dep = null_dep
+deps = [yaml_cpp]
+
+mpi_implementation = get_option('MPI')
+if mpi_implementation == 'mpich'
+  deps += dependency('mpich', required: true)
+elif mpi_implementation == 'openmpi'
+  deps += dependency('ompi', required: true)
 else
-  mpi_dep = dependency('mpi', language: 'c', required: true)
+  error('Unknown MPI implementation', mpi_implementation)
+endif
+
+# optional dependencies
+petsc = dependency('PETSc', required: false)
+hypre = dependency('HYPRE', required: false)
+if petsc.found()
+  add_global_arguments('-DHAS_PETSC', language : 'cpp')
+  deps += petsc
+endif
+if hypre.found()
+  add_global_arguments('-DHAS_HYPRE', language : 'cpp')
+  deps += hypre
 endif
 
 src = [
@@ -53,11 +69,12 @@ soversion = meson.project_version().split('.')[0]
 libLinSolve = library('LinSolve',
   src,
   include_directories: hdr,
-  dependencies: [mpi_dep, yaml_cpp],
+  dependencies: deps,
   install: true,
   soversion: soversion,
   version: meson.project_version()
 )
+libs = [libLinSolve]
 
 fs = import('fs')
 pkg_mod = import('pkgconfig')

@@ -1,6 +1,6 @@
-option('MPI_WRAPPER',
-  type : 'boolean',
-  value : false,
-  description : 'Expects CC and CXX to point to an mpi wrapper tool (e.g. mpic++)',
+option('MPI',
+  type : 'combo',
+  choices: ['mpich', 'openmpi'],
+  description : 'Choice of MPI implementation',
   yield: true
 )
