@@ -115,5 +115,5 @@ pkg_mod.generate(
   name: 'LinSolve',
   filebase: 'LinSolve',
   description: 'HSLU linear solver library',
-  libraries: libLinSolve
+  libraries: libs
 )
