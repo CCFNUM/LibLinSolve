@@ -94,7 +94,7 @@ constexpr Array<N> RMSErrorDiagNormalized(const coefficients<N>& coeff)
     const Vector& R = coeff.getRVector();
 
     assert(A.nRows() == coeff.nCoefficients());
-    assert(R.size() <= BLOCKSIZE * coeff.nCoefficients());
+    assert(static_cast<Index>(R.size()) <= BLOCKSIZE * coeff.nCoefficients());
     const Index nrows = coeff.nCoefficients(); // rank local rows
     Array<N> rms = {0}; // root-mean-square of residual vector
     for (Index i = 0; i < nrows; i++)

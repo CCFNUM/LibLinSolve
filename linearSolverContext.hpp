@@ -19,9 +19,9 @@ Context<N>::Context(const int solver_id,
                     const YAML::Node* node)
     : solver_id_(solver_id), coeffs_(std::make_shared<Coefficients>(graph)),
       profiler_(this->getCommunicator(), "Context [" + family + "]"),
-      family_(family), system_name_(system_name), ctx_precond_(nullptr),
-      cout_(&::std::cout), active_stream_(nullptr), call_count_(0),
-      call_count_relative_(0)
+      family_(family), system_name_(system_name), call_count_(0),
+      call_count_relative_(0), ctx_precond_(nullptr), cout_(&::std::cout),
+      active_stream_(nullptr)
 {
     assert(solver_id_ < linearSolver::ID::UNDEFINED);
     setupDefaults_();
@@ -41,9 +41,9 @@ Context<N>::Context(const int solver_id,
                     const YAML::Node* node)
     : solver_id_(solver_id), coeffs_(coeffs),
       profiler_(this->getCommunicator(), "Context [" + family + "]"),
-      family_(family), system_name_(system_name), ctx_precond_(nullptr),
-      cout_(&::std::cout), active_stream_(nullptr), call_count_(0),
-      call_count_relative_(0)
+      family_(family), system_name_(system_name), call_count_(0),
+      call_count_relative_(0), ctx_precond_(nullptr), cout_(&::std::cout),
+      active_stream_(nullptr)
 {
     assert(solver_id_ < linearSolver::ID::UNDEFINED);
     setupDefaults_();

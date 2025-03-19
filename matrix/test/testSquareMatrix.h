@@ -20,10 +20,10 @@ template <size_t N>
 class testSquareMatrix : public CRSNodeGraph
 {
 public:
-    static constexpr size_t BLOCKSIZE = N;
-
     using Context = ::linearSolver::Context<N>;
     using Index = typename Context::Index;
+
+    static constexpr Index BLOCKSIZE = N;
 
     testSquareMatrix(const MPI_Comm comm,
                      const YAML::Node conf,

@@ -27,13 +27,14 @@ template <size_t N, typename T>
 class CRSNodeGraphSynchronizer
 {
 public:
-    static constexpr int BLOCKSIZE = N;
     using Index = typename CRSNodeGraph::Index;
     using PackInfo = typename CRSNodeGraph::PackInfo;
 
+    static constexpr Index BLOCKSIZE = N;
+
     struct PackData
     {
-        static constexpr int BLOCKSIZE = N;
+        static constexpr Index BLOCKSIZE = N;
         const PackInfo* info;
         std::vector<T> send_buf;
         std::vector<T> recv_buf;
@@ -83,7 +84,7 @@ public:
         const T* recv_src = data.recv_buf.data();
         for (const Index i : info->recv_idx)
         {
-            assert(BLOCKSIZE * (i + 1) - 1 < dst.size());
+            assert(BLOCKSIZE * (i + 1) - 1 < static_cast<Index>(dst.size()));
             T* recv_dst = &dst[BLOCKSIZE * i];
             for (int k = 0; k < BLOCKSIZE; k++)
             {

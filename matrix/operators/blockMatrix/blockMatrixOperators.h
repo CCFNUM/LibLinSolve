@@ -239,7 +239,7 @@ matrixMatrixSub(const TReal* A, const TReal* B, TReal* __restrict__ C)
 
 // determinant
 template <int BLOCKSIZE, typename TReal>
-inline TReal determinant(const TReal* src)
+inline TReal determinant(const TReal*)
 {
     throw std::runtime_error(
         "BlockMatrix: determinant not implemented for generic BLOCKSIZE");
@@ -248,14 +248,14 @@ inline TReal determinant(const TReal* src)
 
 // matrix inversion
 template <int BLOCKSIZE, typename TReal>
-inline void invertInplace(TReal* src)
+inline void invertInplace(TReal*)
 {
     throw std::runtime_error(
         "BlockMatrix: inplace invert not implemented for generic BLOCKSIZE");
 }
 
 template <int BLOCKSIZE, typename TReal>
-inline void invert(const TReal* src, TReal* dst)
+inline void invert(const TReal*, TReal*)
 {
     throw std::runtime_error(
         "BlockMatrix: invert not implemented for generic BLOCKSIZE");

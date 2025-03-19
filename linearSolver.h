@@ -23,8 +23,7 @@ template <size_t N>
 class Base
 {
 public:
-    static constexpr size_t BLOCKSIZE = N;
-    using Context = ::linearSolver::Context<BLOCKSIZE>;
+    using Context = ::linearSolver::Context<N>;
     using ControlData = typename Context::ControlData;
     using Array = typename Context::Array;
     using Coefficients = typename Context::Coefficients;
@@ -32,6 +31,8 @@ public:
     using Vector = typename Context::Vector;
     using Index = typename Context::Index;
     using IndexVector = typename Context::IndexVector;
+
+    static constexpr Index BLOCKSIZE = N;
 
     Base(const int id, const bool precond = false)
         : ctx_(nullptr), id_(id), is_preconditioner_(precond)

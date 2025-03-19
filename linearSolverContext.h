@@ -67,14 +67,15 @@ template <size_t N>
 class Context
 {
 public:
-    static constexpr size_t BLOCKSIZE = N;
-    using Coefficients = coefficients<BLOCKSIZE>;
+    using Coefficients = coefficients<N>;
     using Matrix = typename Coefficients::Matrix;
     using Vector = typename Coefficients::Vector;
     using Index = typename Coefficients::Index;
     using IndexVector = typename Coefficients::IndexVector;
-    using ControlData = ::linearSolver::ControlData<BLOCKSIZE>;
+    using ControlData = ::linearSolver::ControlData<N>;
     using Array = typename ControlData::Array;
+
+    static constexpr Index BLOCKSIZE = N;
 
     Context() = delete;
 
@@ -188,7 +189,8 @@ public:
         return old;
     }
 
-    virtual void solvePrologue(const int solver_id, const bool preconditioner)
+    virtual void solvePrologue(const int /* solver_id */,
+                               const bool preconditioner)
     {
         // initial residual
         auto& coeff = this->getCoefficients();
@@ -201,7 +203,8 @@ public:
         }
     }
 
-    virtual void solveEpilogue(const int solver_id, const bool preconditioner)
+    virtual void solveEpilogue(const int /* solver_id */,
+                               const bool preconditioner)
     {
         // final residual
         auto& coeff = this->getCoefficients();

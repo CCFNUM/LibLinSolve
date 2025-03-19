@@ -28,12 +28,12 @@ template <size_t N>
 class CRSMatrix : public CRSConnectivity
 {
 public:
-    static constexpr size_t BLOCKSIZE = N;
-
     using MemoryLayout = GraphLayout;
     using Index = CRSConnectivity::Index;
     using DataType = TRealSolver;
     using Vector = std::vector<DataType>;
+
+    static constexpr Index BLOCKSIZE = N;
 
 private:
     template <typename T>
