@@ -72,16 +72,18 @@ public:
         const auto ctrl = ctx->getControlData();
         auto& cout = ctx->cout();
         cout << "Test square matrix domain row decomposition:\n";
-        cout << "\tBlocksize: " << BLOCKSIZE << '\n';
+        cout << "\tName:                 " << ctx->getSystemName() << '\n';
+        cout << "\tSolver family:        " << ctx->getFamily() << '\n';
+        cout << "\tBlocksize:            " << BLOCKSIZE << '\n';
         cout << "\tTotal number of rows: " << n_rows << '\n';
         for (int i = 0; i < size; i++)
         {
-            cout << "\tRows on rank " << std::setw(3) << std::left << i << ": "
-                 << decomposition[i] << '\n';
+            cout << "\tRows on rank          " << std::setw(3) << std::left << i
+                 << ": " << decomposition[i] << '\n';
         }
-        cout << "\tInitial RMS:  " << ctrl.solver_initial_res << '\n';
-        cout << "\tFinal RMS:    " << ctrl.solver_final_res << '\n';
-        cout << "\tN iterations: " << ctrl.n_iterations << '\n';
+        cout << "\tInitial RMS:          " << ctrl.solver_initial_res << '\n';
+        cout << "\tFinal RMS:            " << ctrl.solver_final_res << '\n';
+        cout << "\tN iterations:         " << ctrl.n_iterations << '\n';
     }
 
     operator CRSNodeGraph*() const
