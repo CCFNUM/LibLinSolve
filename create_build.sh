@@ -26,6 +26,9 @@ esac
 
 mkdir -p "${build_dir}"
 cat <<EOF >"${build_dir}/build_env.sh"
+if ! command -v module &> /dev/null; then
+    source /etc/profile.d/lmod.sh
+fi
 module purge
 module load gnu12
 module load yaml-cpp
