@@ -789,7 +789,7 @@ void ContextHYPRE<N>::setMGR_(HYPRE_Solver& object, const YAML::Node* options)
                     }
                     const std::vector<int> cpoints_level =
                         cpoints_bb[level_id].template as<std::vector<int>>();
-                    assert(cpoints_level.size() <= blocksize);
+                    assert(static_cast<int>(cpoints_level.size()) <= blocksize);
                     cpoints[i] = cpoints_level.size();
                     for (const int cpoint : cpoints_level)
                     {
