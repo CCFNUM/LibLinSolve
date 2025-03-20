@@ -8,7 +8,7 @@
 
 #include "CRSNodeGraph.h"
 #include "linearSolverContext.h"
-#include <iostream>
+#include "residual.h"
 #include <mpi.h>
 #include <vector>
 #include <yaml-cpp/yaml.h>
@@ -49,7 +49,6 @@ public:
         assert(static_cast<const void*>(ctx->getCoefficients().getGraph()) ==
                static_cast<const void*>(this));
 
-        const int rank = this->commRank();
         const int size = this->commSize();
 
         Index n_rows = 0;
@@ -69,17 +68,20 @@ public:
                    MPIDataType<Index>::type(),
                    0,
                    this->comm_);
-        if (0 == rank)
+
+        const auto ctrl = ctx->getControlData();
+        auto& cout = ctx->cout();
+        cout << "Test square matrix domain row decomposition:\n";
+        cout << "\tBlocksize: " << BLOCKSIZE << '\n';
+        cout << "\tTotal number of rows: " << n_rows << '\n';
+        for (int i = 0; i < size; i++)
         {
-            std::cout << "Test square matrix domain row decomposition:\n";
-            std::cout << "\tBlocksize: " << BLOCKSIZE << '\n';
-            std::cout << "\tTotal number of rows: " << n_rows << '\n';
-            for (int i = 0; i < size; i++)
-            {
-                std::cout << "\tRows on rank " << std::setw(3) << std::left << i
-                          << ": " << decomposition[i] << '\n';
-            }
+            cout << "\tRows on rank " << std::setw(3) << std::left << i << ": "
+                 << decomposition[i] << '\n';
         }
+        cout << "\tInitial RMS:  " << ctrl.solver_initial_res << '\n';
+        cout << "\tFinal RMS:    " << ctrl.solver_final_res << '\n';
+        cout << "\tN iterations: " << ctrl.n_iterations << '\n';
     }
 
     operator CRSNodeGraph*() const

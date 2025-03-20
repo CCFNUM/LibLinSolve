@@ -148,12 +148,10 @@ int main(int argc, char* argv[])
     assert(matrix);
     Context* ctx = solver->createContext("TestMatrix", matrix).get();
     matrix->assemble(ctx);
-    matrix->report(ctx);
 
     solver->solve();
     solver->report();
-
-    // TODO: [fab4100@posteo.net; 2025-03-19] residual file
+    matrix->report(ctx);
 
     delete matrix;
     delete solver;

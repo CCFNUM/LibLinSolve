@@ -1,5 +1,6 @@
 # solver: petsc
 solver: gmres
+# solver: amgsolver
 matrix:
     # type: diagonal
     type: preconditioner
@@ -19,21 +20,21 @@ solver_lookup:
         max_iterations: 10
         rtol: 1.0e-9
         atol: 1.0e-16
-        verbose: 5
+        verbose: 2
         options:
-            precond: amgsolver
+            precond: amgprecond
             krylov_type: flexgmres
             krylov_dim: 20
             max_restart: 0
             precondition_type: right
             verbose: 2
 
-    amgsolver:
+    amgprecond:
         family: AMGSolver
         min_iterations: 3
         max_iterations: 20
-        rtol: 1.0e-15
-        # rtol: 1.0e-1
+        # rtol: 1.0e-15
+        rtol: 1.0e-1
         atol: 1.0e-15
         verbose: 1
         options:
@@ -49,10 +50,30 @@ solver_lookup:
             max_cv_agglomeration: 9
             verbose: 0
 
+    amgsolver:
+        family: AMGSolver
+        min_iterations: 3
+        max_iterations: 1000
+        rtol: 1.0e-09
+        atol: 1.0e-20
+        verbose: 5
+        options:
+            cycle_type: V-Cycle
+            smoother_type: ILU0
+            # smoother_algorithm: none
+            smoother_algorithm: orthomin
+            orthomin_krylov_dim: 1
+            # diagonal_dominance: 3.0
+        agglomerator:
+            max_levels: 12
+            min_cv_agglomeration: 5
+            max_cv_agglomeration: 9
+            verbose: 0
+
     petsc:
         family: PETSc
-        max_iterations: 10
-        rtol: 1.0e-15
+        max_iterations: 1000
+        rtol: 1.0e-09
         atol: 1.0e-20
         verbose: 5
         options:
@@ -63,7 +84,7 @@ solver_lookup:
     hypre:
         family: HYPRE
         max_iterations: 10
-        rtol: 1.0e-15
+        rtol: 1.0e-09
         atol: 1.0e-20
         options:
             solver:
@@ -86,7 +107,7 @@ solver_lookup:
     hypre_mgr:
         family: HYPRE
         max_iterations: 10
-        rtol: 1.0e-15
+        rtol: 1.0e-09
         atol: 1.0e-20
         options:
             solver:
