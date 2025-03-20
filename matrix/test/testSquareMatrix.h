@@ -26,16 +26,16 @@ public:
     static constexpr Index BLOCKSIZE = N;
 
     testSquareMatrix(const MPI_Comm comm,
-                     const YAML::Node conf,
+                     const GraphLayout layout,
                      const Index n,
-                     const GraphLayout layout)
+                     const YAML::Node* conf = nullptr)
         : CRSNodeGraph(comm, layout), n_(n)
     {
         if (conf)
         {
-            if (conf["n"])
+            if ((*conf)["n"])
             {
-                n_ = conf["n"].template as<Index>();
+                n_ = (*conf)["n"].template as<Index>();
             }
         }
 

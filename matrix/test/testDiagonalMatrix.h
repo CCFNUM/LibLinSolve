@@ -35,27 +35,27 @@ public:
 
     testDiagonalMatrix(const MPI_Comm comm,
                        const GraphLayout layout,
-                       const YAML::Node conf)
-        : testSquareMatrix<N>(comm, conf, 10, layout), b_i_(1.0), blk_ii_(2.0),
+                       const YAML::Node* conf = nullptr)
+        : testSquareMatrix<N>(comm, layout, 10, conf), b_i_(1.0), blk_ii_(2.0),
           blk_ij_(1.0), random_(false)
     {
         if (conf)
         {
-            if (conf["random"])
+            if ((*conf)["random"])
             {
-                random_ = conf["random"].template as<bool>();
+                random_ = (*conf)["random"].template as<bool>();
             }
-            if (conf["b_i"])
+            if ((*conf)["b_i"])
             {
-                b_i_ = conf["b_i"].template as<DataType>();
+                b_i_ = (*conf)["b_i"].template as<DataType>();
             }
-            if (conf["blk_ii"])
+            if ((*conf)["blk_ii"])
             {
-                blk_ii_ = conf["blk_ii"].template as<DataType>();
+                blk_ii_ = (*conf)["blk_ii"].template as<DataType>();
             }
-            if (conf["blk_ij"])
+            if ((*conf)["blk_ij"])
             {
-                blk_ij_ = conf["blk_ij"].template as<DataType>();
+                blk_ij_ = (*conf)["blk_ij"].template as<DataType>();
             }
         }
 
@@ -80,8 +80,8 @@ public:
         ctx->getCoefficients().zeroLHS();
         ctx->getCoefficients().zeroRHS();
         auto a = A.valuesRef();
-        assert(a.size() == BLOCKSIZE * BLOCKSIZE * n);
-        assert(b.size() == BLOCKSIZE * n);
+        assert(static_cast<Index>(a.size()) == BLOCKSIZE * BLOCKSIZE * n);
+        assert(static_cast<Index>(b.size()) == BLOCKSIZE * n);
 
         // set test system
         std::uniform_real_distribution<DataType> U(0, 1);

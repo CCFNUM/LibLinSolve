@@ -34,16 +34,16 @@ public:
 
     testMatrixFromFile(const MPI_Comm comm,
                        const GraphLayout layout,
-                       const YAML::Node conf)
-        : testSquareMatrix<N>(comm, conf, 10, layout)
+                       const YAML::Node* conf = nullptr)
+        : testSquareMatrix<N>(comm, layout, 10, conf)
     {
         assert(this->isLocalColumnOrder());
 
         if (conf)
         {
-            if (conf["filename"])
+            if ((*conf)["filename"])
             {
-                fname_ = conf["filename"].template as<std::string>();
+                fname_ = (*conf)["filename"].template as<std::string>();
             }
             else
             {

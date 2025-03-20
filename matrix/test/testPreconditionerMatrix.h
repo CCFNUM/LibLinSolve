@@ -38,37 +38,37 @@ public:
 
     testPreconditionerMatrix(const MPI_Comm comm,
                              const GraphLayout layout,
-                             const YAML::Node conf)
-        : testSquareMatrix<N>(comm, conf, 1000, layout), b_i_(1.0),
+                             const YAML::Node* conf = nullptr)
+        : testSquareMatrix<N>(comm, layout, 1000, conf), b_i_(1.0),
           blk_ii_(0.5), blk_ij_(1.0), off_diag_dominance_(1.0),
           off_diagonal_(100), random_(false)
     {
         if (conf)
         {
-            if (conf["random"])
+            if ((*conf)["random"])
             {
-                random_ = conf["random"].template as<bool>();
+                random_ = (*conf)["random"].template as<bool>();
             }
-            if (conf["b_i"])
+            if ((*conf)["b_i"])
             {
-                b_i_ = conf["b_i"].template as<DataType>();
+                b_i_ = (*conf)["b_i"].template as<DataType>();
             }
-            if (conf["blk_ii"])
+            if ((*conf)["blk_ii"])
             {
-                blk_ii_ = conf["blk_ii"].template as<DataType>();
+                blk_ii_ = (*conf)["blk_ii"].template as<DataType>();
             }
-            if (conf["blk_ij"])
+            if ((*conf)["blk_ij"])
             {
-                blk_ij_ = conf["blk_ij"].template as<DataType>();
+                blk_ij_ = (*conf)["blk_ij"].template as<DataType>();
             }
-            if (conf["off_diag_dominance"])
+            if ((*conf)["off_diag_dominance"])
             {
                 off_diag_dominance_ =
-                    conf["off_diag_dominance"].template as<DataType>();
+                    (*conf)["off_diag_dominance"].template as<DataType>();
             }
-            if (conf["off_diagonal"])
+            if ((*conf)["off_diagonal"])
             {
-                off_diagonal_ = conf["off_diagonal"].template as<Index>();
+                off_diagonal_ = (*conf)["off_diagonal"].template as<Index>();
             }
         }
 
