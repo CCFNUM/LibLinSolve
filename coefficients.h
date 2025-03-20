@@ -11,8 +11,11 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <mpi.h>
+#include <sstream>
+#include <string>
 #include <vector>
 
 namespace linearSolver
@@ -161,6 +164,44 @@ public:
 
         // integer data
         this->graph_->getMemoryFootprint(connectivity);
+    }
+
+    void serialize(const std::string basename = "coeffs") const
+    {
+        const int rank = this->commRank();
+        const int size = this->commSize();
+        std::ostringstream fname;
+        fname << basename << '.' << rank << '.' << size;
+        std::ofstream fout(fname.str(), std::ios::binary);
+
+        // graph
+        this->graph_->serialize(fout);
+
+        // coefficients (always write 64-bit)
+        uint64_t v64;
+        double fp64;
+
+        // header
+        const char* p64 = reinterpret_cast<char*>(&v64);
+        v64 = BLOCKSIZE;
+        fout.write(p64, sizeof(uint64_t));
+        v64 = this->values_.size();
+        fout.write(p64, sizeof(uint64_t));
+        v64 = this->b_.size();
+        fout.write(p64, sizeof(uint64_t));
+
+        // data
+        p64 = reinterpret_cast<char*>(&fp64);
+        for (const DataType v : this->values_)
+        {
+            fp64 = v;
+            fout.write(p64, sizeof(double));
+        }
+        for (const DataType v : this->b_)
+        {
+            fp64 = v;
+            fout.write(p64, sizeof(double));
+        }
     }
 
     // Normalize matrix rows based on the row p1 norm

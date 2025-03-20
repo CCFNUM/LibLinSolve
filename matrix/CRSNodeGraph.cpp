@@ -5,6 +5,7 @@
 // Copyright 2024 CCFNUM HSLU T&A. All Rights Reserved.
 
 #include "CRSNodeGraph.h"
+#include <cstdint>
 #include <iostream>
 #include <mpi.h>
 #include <numeric>
@@ -202,6 +203,70 @@ void CRSNodeGraph::getMemoryFootprint(MemoryFootprint& data) const
                    0,
                    comm_);
         data.sum_byte *= sizeof(Index);
+    }
+}
+
+void CRSNodeGraph::serialize(std::ofstream& out) const
+{
+    uint64_t v64; // always write 64-bit
+    const char* p64 = reinterpret_cast<char*>(&v64);
+
+    // header
+    v64 = sizeof(Index); // size of index type
+    out.write(p64, sizeof(uint64_t));
+    v64 = n_owned_nodes_;
+    out.write(p64, sizeof(uint64_t));
+    v64 = row_ptr_.size();
+    out.write(p64, sizeof(uint64_t));
+    v64 = primary_indices_.size();
+    out.write(p64, sizeof(uint64_t));
+
+    // data
+    for (const Index i : row_ptr_)
+    {
+        v64 = i;
+        out.write(p64, sizeof(uint64_t));
+    }
+    for (const Index i : primary_indices_)
+    {
+        v64 = i;
+        out.write(p64, sizeof(uint64_t));
+    }
+    for (const Index i : secondary_indices_)
+    {
+        v64 = i;
+        out.write(p64, sizeof(uint64_t));
+    }
+}
+
+void CRSNodeGraph::deserialize(std::ifstream& in)
+{
+    uint64_t v64; // always read 64-bit
+    char* p64 = reinterpret_cast<char*>(&v64);
+    in.read(p64, sizeof(uint64_t));
+    assert(sizeof(Index) == v64);
+    in.read(p64, sizeof(uint64_t));
+    n_owned_nodes_ = static_cast<Index>(v64);
+    in.read(p64, sizeof(uint64_t));
+    row_ptr_.resize(v64, 0);
+    in.read(p64, sizeof(uint64_t));
+    primary_indices_.resize(v64, 0);
+    secondary_indices_.resize(v64, 0);
+
+    for (size_t i = 0; i < row_ptr_.size(); i++)
+    {
+        in.read(p64, sizeof(uint64_t));
+        row_ptr_[i] = static_cast<Index>(v64);
+    }
+    for (size_t i = 0; i < primary_indices_.size(); i++)
+    {
+        in.read(p64, sizeof(uint64_t));
+        primary_indices_[i] = static_cast<Index>(v64);
+    }
+    for (size_t i = 0; i < secondary_indices_.size(); i++)
+    {
+        in.read(p64, sizeof(uint64_t));
+        secondary_indices_[i] = static_cast<Index>(v64);
     }
 }
 

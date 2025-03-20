@@ -12,6 +12,7 @@
 #include <cassert>
 #include <fstream>
 #include <mpi.h>
+#include <sstream>
 #include <string>
 
 namespace linearSolver
@@ -87,66 +88,44 @@ private:
 
     void buildGraph_() override
     {
-        std::ifstream fin(fname_, std::ios::binary);
+        int rank;
+        int size;
+        MPI_Comm_rank(this->getCommunicator(), &rank);
+        MPI_Comm_size(this->getCommunicator(), &size);
 
-        int blocksize;
-        int n_rows;
-        int nnz;
-        fin.read((char*)&blocksize, sizeof(int));
-        fin.read((char*)&n_rows, sizeof(int));
-        fin.read((char*)&nnz, sizeof(int));
+        std::ostringstream fname;
+        fname << fname_ << '.' << rank << '.' << size;
 
-        this->n_ = n_rows;
-        this->domainDecomposition(1);
+        std::ifstream fin(fname.str(), std::ios::binary);
+        this->deserialize(fin);
+        this->n_ = this->n_owned_nodes_;
 
+        uint64_t blocksize;
+        uint64_t lhs_size;
+        uint64_t rhs_size;
+        fin.read((char*)&blocksize, sizeof(uint64_t));
+        fin.read((char*)&lhs_size, sizeof(uint64_t));
+        fin.read((char*)&rhs_size, sizeof(uint64_t));
         assert(blocksize == BLOCKSIZE);
 
-        const Index n = this->getDimension();
-        this->n_owned_nodes_ = n;
-        row_ptr_.reserve(n + 1);
-        primary_indices_.reserve(nnz);
+        lhs_.resize(lhs_size, 0);
+        rhs_.resize(rhs_size, 0);
 
-        int v;
-        for (int i = 0; i < n + 1; i++)
+        double fp64;
+        char* p64 = reinterpret_cast<char*>(&fp64);
+        for (size_t i = 0; i < lhs_.size(); i++)
         {
-            fin.read((char*)&v, sizeof(int));
-            row_ptr_.push_back(v);
+            fin.read(p64, sizeof(double));
+            lhs_[i] = static_cast<DataType>(fp64);
         }
-
-        for (int i = 0; i < nnz; i++)
+        for (size_t i = 0; i < rhs_.size(); i++)
         {
-            fin.read((char*)&v, sizeof(int));
-            primary_indices_.push_back(v);
+            fin.read(p64, sizeof(double));
+            rhs_[i] = static_cast<DataType>(fp64);
         }
-
-        lhs_.reserve(blocksize * blocksize * nnz);
-        rhs_.reserve(blocksize * n_rows);
-
-        double src[BLOCKSIZE * BLOCKSIZE];
-        for (int i = 0; i < nnz; i++)
-        {
-            fin.read((char*)src, blocksize * blocksize * sizeof(double));
-            for (int j = 0; j < BLOCKSIZE * BLOCKSIZE; j++)
-            {
-                lhs_.push_back(static_cast<DataType>(src[j]));
-            }
-        }
-        for (int i = 0; i < n; i++)
-        {
-            fin.read((char*)src, blocksize * sizeof(double));
-            for (int j = 0; j < BLOCKSIZE; j++)
-            {
-                rhs_.push_back(static_cast<DataType>(src[j]));
-            }
-        }
-
         fin.close();
-    }
 
-    void computePackInfos_() override
-    {
-        // no communication required -> single rank only
-        this->pack_infos_.clear();
+        this->determine_n_ghosts_ = true;
     }
 };
 

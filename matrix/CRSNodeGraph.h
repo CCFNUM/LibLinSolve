@@ -10,6 +10,7 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <memory>
 #include <mpi.h>
 #include <span>
@@ -339,6 +340,8 @@ public:
     std::span<const Index> rowGlobalIndices(const Index i_row) const;
 
     void getMemoryFootprint(MemoryFootprint& data) const;
+    void serialize(std::ofstream& out) const;
+    void deserialize(std::ifstream& in);
 
 protected:
     MPI_Comm comm_;
