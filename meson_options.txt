@@ -1,6 +1,13 @@
 option('MPI',
-  type : 'combo',
+  type: 'combo',
   choices: ['mpich', 'openmpi'],
-  description : 'Choice of MPI implementation',
+  description: 'Choice of MPI implementation',
+  yield: true
+)
+
+option('CONFIG',
+  type: 'boolean',
+  value: true,
+  description: 'Generate Config.h header for library builds',
   yield: true
 )

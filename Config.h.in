@@ -1,0 +1,18 @@
+// File       : Config.h
+// Created    : Thu Mar 20 2025 08:40:08 (+0100)
+// Author     : Fabian Wermelinger
+// Description: LibLinSolve configuration
+// Copyright 2025 CCFNUM HSLU T&A. All Rights Reserved.
+#ifndef CONFIG_H_IN_C9NDIOQJ
+#define CONFIG_H_IN_C9NDIOQJ
+
+#define VERSION_MAJOR @major@
+#define VERSION_MINOR @minor@
+#define VERSION_PATCH @patch@
+#define VERSION @version@
+
+#mesondefine HAS_AMG
+#mesondefine HAS_HYPRE
+#mesondefine HAS_PETSC
+
+#endif /* CONFIG_H_IN_C9NDIOQJ */

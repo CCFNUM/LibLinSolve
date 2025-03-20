@@ -6,6 +6,9 @@
 #ifndef AMG_H_FCOHLAMO
 #define AMG_H_FCOHLAMO
 
+#ifndef NO_LINSOLVE_CONF
+#include "Config.h"
+#endif /* NO_LINSOLVE_CONF */
 #include "CRSNodeGraph.h"
 #include <yaml-cpp/yaml.h>
 

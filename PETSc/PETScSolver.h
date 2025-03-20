@@ -8,6 +8,9 @@
 
 #define DEBUG_PETSC 0
 
+#ifndef NO_LINSOLVE_CONF
+#include "Config.h"
+#endif /* NO_LINSOLVE_CONF */
 #include "ContextPETSc.h"
 #include "linearSolver.h"
 #include <cassert>

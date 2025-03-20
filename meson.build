@@ -15,15 +15,23 @@ project('LinearSolverLibrary', ['cpp', 'c'],
     'default_library=shared',
     'warning_level=3',
     'MPI=mpich',
+    'CONFIG=true',
   ]
 )
 
-# compiler object
-cpp = meson.get_compiler('cpp')
-c = meson.get_compiler('c')
-
 # global compiler flags
 add_global_arguments('-DOMPI_SKIP_MPICXX', language : 'cpp')
+
+conf = configuration_data()
+if get_option('CONFIG')
+  version = meson.project_version().split('.')
+  conf.set('major', version[0])
+  conf.set('minor', version[1])
+  conf.set('patch', version[2])
+  conf.set_quoted('version', meson.project_version())
+else
+  add_global_arguments('-DNO_LINSOLVE_CONF', language : 'cpp')
+endif
 
 # dependencies
 yaml_cpp = dependency('yaml-cpp', required: true)
@@ -42,18 +50,27 @@ endif
 petsc = dependency('PETSc', required: false)
 hypre = dependency('HYPRE', required: false)
 if petsc.found()
-  add_global_arguments('-DHAS_PETSC', language : 'cpp')
   deps += petsc
+  if get_option('CONFIG')
+    conf.set('HAS_PETSC', true)
+  else
+    add_global_arguments('-DHAS_PETSC', language : 'cpp')
+  endif
 endif
 if hypre.found()
-  add_global_arguments('-DHAS_HYPRE', language : 'cpp')
   deps += hypre
+  if get_option('CONFIG')
+    conf.set('HAS_HYPRE', true)
+  else
+    add_global_arguments('-DHAS_HYPRE', language : 'cpp')
+  endif
 endif
 
 src = [
   'matrix/CRSNodeGraph.cpp',
   'utils/Profiler.cpp',
 ]
+
 hdr = include_directories(
   '.',
   'HYPRE',
@@ -64,6 +81,17 @@ hdr = include_directories(
   'matrix/operators/distributed',
   'utils',
 )
+
+if get_option('CONFIG')
+  vcs = vcs_tag(
+    command: [
+      'git', 'describe', '--long', '--tags', '--dirty', '--broken', '--always'
+      ],
+    input: 'GitSHA.h.in',
+    output: 'GitSHA.h'
+  )
+  src += vcs
+endif
 
 soversion = meson.project_version().split('.')[0]
 libLinSolve = library('LinSolve',
@@ -81,6 +109,16 @@ pkg_mod = import('pkgconfig')
 
 if fs.is_dir('libAMG')
   subdir('libAMG')
+endif
+
+if get_option('CONFIG')
+  configure_file(
+    input: 'Config.h.in',
+    output: 'Config.h',
+    configuration: conf,
+    install: true,
+    install_dir: 'include'
+  )
 endif
 
 install_headers(
@@ -109,7 +147,9 @@ install_headers(
   'residual.h',
   'utils/Common.h',
   'utils/Profiler.h',
+  install_dir: 'include'
 )
+install_subdir('matrix/test', install_dir : 'include')
 
 pkg_mod.generate(
   name: 'LinSolve',

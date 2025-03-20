@@ -6,6 +6,9 @@
 #ifndef HYPRE_H_1ZJ2PH7A
 #define HYPRE_H_1ZJ2PH7A
 
+#ifndef NO_LINSOLVE_CONF
+#include "Config.h"
+#endif /* NO_LINSOLVE_CONF */
 #include "ContextHYPRE.h"
 #include "linearSolver.h"
 #include <cassert>

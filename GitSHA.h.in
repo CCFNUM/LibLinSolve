@@ -1,0 +1,11 @@
+// File       : GitSHA.h.in
+// Created    : Thu Mar 20 2025 09:00:35 (+0100)
+// Author     : Fabian Wermelinger
+// Description: Git SHA of build
+// Copyright 2025 CCFNUM HSLU T&A. All Rights Reserved.
+#ifndef GITSHA_H_IN_0XD2AU9W
+#define GITSHA_H_IN_0XD2AU9W
+
+#define GIT_HASH "@VCS_TAG@"
+
+#endif /* GITSHA_H_IN_0XD2AU9W */
