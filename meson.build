@@ -107,8 +107,8 @@ libs = [libLinSolve]
 fs = import('fs')
 pkg_mod = import('pkgconfig')
 
-if fs.is_dir('libAMG')
-  subdir('libAMG')
+if fs.is_dir('libamg')
+  subdir('libamg')
 endif
 
 if get_option('CONFIG')

@@ -93,7 +93,7 @@ if(DEFINED WITH_FASTMATH AND WITH_FASTMATH)
     message("-- Using fast math optimizations (NOT compliant with IEEE)")
 endif()
 
-get_filename_component(libAMG_PATH "libAMG" REALPATH)
+get_filename_component(libAMG_PATH "libamg" REALPATH)
 if(EXISTS "${libAMG_PATH}")
     add_subdirectory(${libAMG_PATH})
     set(libAMG ${libAMG} PARENT_SCOPE)
