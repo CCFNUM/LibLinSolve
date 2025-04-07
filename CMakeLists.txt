@@ -56,6 +56,7 @@ target_include_directories(${libLinSolve}
     ${MPI_INCLUDE_PATH}
     ${libLinSolveIncludes}
 )
+target_link_libraries(${libLinSolve} ${MPI_CXX_LIBRARIES})
 
 install(TARGETS ${libLinSolve} DESTINATION lib64)
 install(FILES
