@@ -20,7 +20,7 @@ project('LinearSolverLibrary', ['cpp', 'c'],
 )
 
 # global compiler flags
-add_global_arguments('-DOMPI_SKIP_MPICXX', language : 'cpp')
+cpp_args = []
 
 conf = configuration_data()
 if get_option('CONFIG')
@@ -30,7 +30,7 @@ if get_option('CONFIG')
   conf.set('patch', version[2])
   conf.set_quoted('version', meson.project_version())
 else
-  add_global_arguments('-DNO_LINSOLVE_CONF', language : 'cpp')
+  cpp_args += '-DNO_LINSOLVE_CONF'
 endif
 
 # dependencies
@@ -40,8 +40,10 @@ deps = [yaml_cpp]
 mpi_implementation = get_option('MPI')
 if mpi_implementation == 'mpich'
   deps += dependency('mpich', required: true)
+  cpp_args += '-DMPICH_SKIP_MPICXX'
 elif mpi_implementation == 'openmpi'
   deps += dependency('ompi', required: true)
+  cpp_args += '-DOMPI_SKIP_MPICXX'
 else
   error('Unknown MPI implementation', mpi_implementation)
 endif
@@ -54,7 +56,7 @@ if petsc.found()
   if get_option('CONFIG')
     conf.set('HAS_PETSC', true)
   else
-    add_global_arguments('-DHAS_PETSC', language : 'cpp')
+    cpp_args += '-DHAS_PETSC'
   endif
 endif
 if hypre.found()
@@ -62,7 +64,7 @@ if hypre.found()
   if get_option('CONFIG')
     conf.set('HAS_HYPRE', true)
   else
-    add_global_arguments('-DHAS_HYPRE', language : 'cpp')
+    cpp_args += '-DHAS_HYPRE'
   endif
 endif
 
@@ -100,7 +102,8 @@ libLinSolve = library('LinSolve',
   dependencies: deps,
   install: true,
   soversion: soversion,
-  version: meson.project_version()
+  version: meson.project_version(),
+  cpp_args: cpp_args
 )
 libs = [libLinSolve]
 
