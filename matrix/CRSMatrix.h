@@ -42,6 +42,17 @@ private:
                                       const bool exscan = false) const;
     void dumpBinary_(const std::string fname, const std::vector<char>& v) const;
 
+    std::ostream& stream_(std::ostream& os,
+                          Index max_rows = 0,
+                          Index max_cols = 0,
+                          const Index width = 20,
+                          const Index precision = 14) const;
+
+    friend std::ostream& operator<<(std::ostream& os, const CRSMatrix& mat)
+    {
+        return mat.stream_(os);
+    }
+
 protected:
     MemoryLayout memory_layout_;
     std::vector<DataType> values_; // flat values array
@@ -167,15 +178,12 @@ public:
     void dump(Index maxRow = -1,
               Index maxCol = -1,
               Index width = 8,
-              Index precision = 14);
+              Index precision = 14) const;
 
     // this is slow because it uses operator() function
-    void dumpRow(Index lid, Index width = 8, Index precision = 14);
+    void dumpRow(Index lid, Index width = 8, Index precision = 14) const;
 
     void writeMatrix(const std::string basename) const;
-
-    template <size_t Q>
-    friend std::ostream& operator<<(std::ostream& os, const CRSMatrix<Q>& mat);
 };
 } // namespace linearSolver
 

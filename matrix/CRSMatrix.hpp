@@ -4,8 +4,8 @@
 // Description: CRS matrix implementation details
 // Copyright 2024 CCFNUM HSLU T&A. All Rights Reserved.
 
-#include <iostream>
 #include <iomanip>
+#include <iostream>
 #include <stdexcept>
 
 namespace linearSolver
@@ -79,72 +79,80 @@ void CRSMatrix<N>::dumpBinary_(const std::string fname,
 }
 
 template <size_t N>
-void CRSMatrix<N>::dump(Index maxRow,
-                        Index maxCol,
-                        Index width,
-                        Index precision)
+std::ostream& CRSMatrix<N>::stream_(std::ostream& os,
+                                    Index max_rows,
+                                    Index max_cols,
+                                    const Index width,
+                                    const Index precision) const
 {
+    std::ios og_fmt(nullptr);
+    og_fmt.copyfmt(os);
+    os << std::scientific << std::setprecision(precision);
+
+    static constexpr Index BLOCKSIZE = N;
     const MPI_Comm comm = this->getCommunicator();
-    if (maxRow == -1 && maxCol == -1)
+    max_rows = (max_rows == 0) ? this->nRows() : max_rows;
+    max_cols = (max_cols == 0) ? this->nRows() : max_cols;
+    if (this->commSize() > 1)
     {
-        std::cout << (*this) << std::endl;
+        for (Index irank = 0; irank < this->commSize(); irank++)
+        {
+            if (irank == this->commRank())
+            {
+                os << "RANK: " << irank << '\n';
+
+                os << "  " << std::setw(width) << " ";
+                for (Index j = 0; j < max_cols * BLOCKSIZE; j++)
+                {
+                    os << std::setw(width) << j << " ";
+                }
+                os << "\n\n";
+                for (Index i = 0; i < max_rows * BLOCKSIZE; i++)
+                {
+                    os << std::setw(width) << i << "  ";
+                    for (Index j = 0; j < max_cols * BLOCKSIZE; j++)
+                    {
+                        os << std::setw(width) << (*this)(i, j) << " ";
+                    }
+                    os << '\n';
+                }
+            }
+            MPI_Barrier(comm);
+        }
     }
     else
     {
-        if (this->commSize() > 1)
+        os << "  " << std::setw(width) << " ";
+        for (Index j = 0; j < max_cols * BLOCKSIZE; j++)
         {
-            for (Index irank = 0; irank < this->commSize(); irank++)
-            {
-                if (irank == this->commRank())
-                {
-                    std::cout << "RANK: " << irank << std::endl;
-
-                    std::cout << "  " << std::setw(width) << " ";
-                    for (Index j = 0; j < maxCol * N; j++)
-                    {
-                        std::cout << std::setw(width) << j << " ";
-                    }
-                    std::cout << std::endl << std::endl;
-                    for (Index i = 0; i < maxRow * N; i++)
-                    {
-                        std::cout << std::setw(width) << i << "  ";
-                        for (Index j = 0; j < maxCol * N; j++)
-                        {
-                            std::cout << std::scientific
-                                 << std::setprecision(precision)
-                                 << std::setw(width) << this->operator()(i, j)
-                                 << " ";
-                        }
-                        std::cout << std::endl;
-                    }
-                }
-                MPI_Barrier(this->getCommunicator());
-            }
+            os << std::setw(width) << j << " ";
         }
-        else
+        os << "\n\n";
+        for (Index i = 0; i < max_rows * BLOCKSIZE; i++)
         {
-            std::cout << "  " << std::setw(width) << " ";
-            for (Index j = 0; j < maxCol * N; j++)
+            os << std::setw(width) << i << "  ";
+            for (Index j = 0; j < max_cols * BLOCKSIZE; j++)
             {
-                std::cout << std::setw(width) << j << " ";
+                os << std::setw(width) << (*this)(i, j) << " ";
             }
-            std::cout << std::endl << std::endl;
-            for (Index i = 0; i < maxRow * N; i++)
-            {
-                std::cout << std::setw(width) << i << "  ";
-                for (Index j = 0; j < maxCol * N; j++)
-                {
-                    std::cout << std::scientific << std::setprecision(precision)
-                         << std::setw(width) << this->operator()(i, j) << " ";
-                }
-                std::cout << std::endl;
-            }
+            os << '\n';
         }
     }
+    os.copyfmt(og_fmt);
+    return os;
 }
 
 template <size_t N>
-void CRSMatrix<N>::dumpRow(Index rowID, Index width, Index precision)
+void CRSMatrix<N>::dump(Index maxRow,
+                        Index maxCol,
+                        Index width,
+                        Index precision) const
+{
+    this->stream_(std::cout, maxRow, maxCol, width, precision);
+}
+
+template <size_t N>
+void CRSMatrix<N>::dumpRow(Index rowID, Index width, Index precision) const
 {
     const MPI_Comm comm = this->getCommunicator();
     if (this->commSize() > 1)
@@ -165,8 +173,8 @@ void CRSMatrix<N>::dumpRow(Index rowID, Index width, Index precision)
                 for (Index jj = 0; jj < N; jj++)
                 {
                     std::cout << std::scientific << std::setprecision(precision)
-                         << std::setw(width) << rowVals[j * N * N + ii * N + jj]
-                         << "\t";
+                              << std::setw(width)
+                              << rowVals[j * N * N + ii * N + jj] << "\t";
                 }
 
                 std::cout << "\n";
@@ -265,61 +273,3 @@ typename CRSMatrix<N>::DataType CRSMatrix<N>::operator()(Index i, Index j) const
 };
 
 } // namespace linearSolver
-
-template <size_t N>
-std::ostream& operator<<(std::ostream& os,
-                         const ::linearSolver::CRSMatrix<N>& mat)
-{
-    using Index = typename ::linearSolver::CRSMatrix<N>::Index;
-
-    const MPI_Comm comm = mat.getCommunicator();
-    if (mat.commSize() > 1)
-    {
-        for (Index irank = 0; irank < mat.commSize(); irank++)
-        {
-            if (irank == mat.commRank())
-            {
-                os << "RANK: " << irank << std::endl;
-
-                os << "  " << std::setw(20) << " ";
-                for (Index j = 0; j < mat.nRows() * N; j++)
-                {
-                    os << std::setw(20) << j << " ";
-                }
-                os << std::endl << std::endl;
-                for (Index i = 0; i < mat.nRows() * N; i++)
-                {
-                    os << std::setw(20) << i << "  ";
-                    for (Index j = 0; j < mat.nRows() * N; j++)
-                    {
-                        os << std::scientific << std::setprecision(14)
-                           << std::setw(20) << mat(i, j) << " ";
-                    }
-                    os << std::endl;
-                }
-            }
-            MPI_Barrier(comm);
-        }
-    }
-    else
-    {
-        os << "  " << std::setw(20) << " ";
-        for (Index j = 0; j < mat.nRows() * N; j++)
-        {
-            os << std::setw(20) << j << " ";
-        }
-        os << std::endl << std::endl;
-        for (Index i = 0; i < mat.nRows() * N; i++)
-        {
-            os << std::setw(20) << i << "  ";
-            for (Index j = 0; j < mat.nRows() * N; j++)
-            {
-                os << std::scientific << std::setprecision(14) << std::setw(20)
-                   << mat(i, j) << " ";
-            }
-            os << std::endl;
-        }
-    }
-
-    return os;
-}
