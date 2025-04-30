@@ -154,6 +154,12 @@ install_headers(
 )
 install_subdir('matrix/test', install_dir : 'include')
 
+libLinSolve_dep = declare_dependency(
+  include_directories: hdr,
+  link_with: libLinSolve,
+  dependencies: deps
+)
+
 pkg_mod.generate(
   name: 'LinSolve',
   filebase: 'LinSolve',
