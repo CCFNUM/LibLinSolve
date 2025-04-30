@@ -250,11 +250,11 @@ void CRSNodeGraph::deserialize(std::ifstream& in)
 
 typename CRSNodeGraph::Index CRSNodeGraph::filterGhostsForOwnerRank_(
     int& owner_rank,
-    std::vector<typename CRSNodeGraph::Index>::const_iterator ghost_start,
-    const std::vector<typename CRSNodeGraph::Index>::const_iterator ghost_end,
+    CRSNodeGraph::IndexVector::const_iterator ghost_start,
+    const CRSNodeGraph::IndexVector::const_iterator ghost_end,
     const int myrank,
     const int size,
-    const std::vector<typename CRSNodeGraph::Index>& n_local_nodes) const
+    const CRSNodeGraph::IndexVector& n_local_nodes) const
 {
     const int r0 = (*ghost_start < this->global_row_offset_) ? 0 : myrank + 1;
     const int r1 = (*ghost_start < this->global_row_offset_) ? myrank : size;
@@ -293,7 +293,7 @@ void CRSNodeGraph::computePackInfos_()
         return;
     }
 
-    std::vector<Index> rank_n_nodes(size_);
+    IndexVector rank_n_nodes(size_);
     MPI_Allgather(&n_owned_nodes_,
                   1,
                   MPIDataType<Index>::type(),
@@ -303,8 +303,8 @@ void CRSNodeGraph::computePackInfos_()
                   comm_);
 
     // 1.) determine locally required ghosts
-    std::vector<Index> global_ghost;
-    std::vector<Index> local_ghost;
+    IndexVector global_ghost;
+    IndexVector local_ghost;
     std::unordered_set<Index> ghost_query;
     const auto local_idx = this->localIndices();
     const auto global_idx = this->globalIndices();
@@ -365,7 +365,7 @@ void CRSNodeGraph::computePackInfos_()
     assert(static_cast<Index>(global_ghost.size()) <= this->n_ghost_nodes_);
 
     // sort ghosts based on global indices
-    std::vector<Index> permute(global_ghost.size());
+    IndexVector permute(global_ghost.size());
     std::iota(permute.begin(), permute.end(), 0);
     std::sort(permute.begin(),
               permute.end(),
@@ -376,7 +376,7 @@ void CRSNodeGraph::computePackInfos_()
 
     // 2.) assign recv indices and prepare request buffer
     std::vector<PackInfo> infos(size_);
-    std::vector<std::vector<Index>> request_ghosts(size_);
+    std::vector<IndexVector> request_ghosts(size_);
     auto l_ghost = local_ghost.cbegin();
     auto g_ghost = global_ghost.cbegin();
     while (g_ghost != global_ghost.end())
@@ -400,8 +400,8 @@ void CRSNodeGraph::computePackInfos_()
     }
 
     // 3.) inform other ranks what messages I expect and exchange indices
-    std::vector<Index> n_expected(size_, 0);
-    std::vector<Index> n_send_count(size_, 0);
+    IndexVector n_expected(size_, 0);
+    IndexVector n_send_count(size_, 0);
     for (int i = 0; i < size_; i++)
     {
         n_expected[i] = static_cast<Index>(infos[i].recv_idx.size());
@@ -580,8 +580,8 @@ void CRSNodeGraph::sortPrimaryIndices_()
     }
 #endif /* NDEBUG */
 
-    std::vector<Index> buffer;
-    std::vector<Index> permute;
+    IndexVector buffer;
+    IndexVector permute;
     for (Index i_row = 0; i_row < n_owned_nodes_; ++i_row)
     {
         std::span<Index> primary_idx =

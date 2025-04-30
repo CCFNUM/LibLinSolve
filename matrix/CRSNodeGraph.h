@@ -142,12 +142,13 @@ public:
     // Main graph index type.  This type is used to compute differences and
     // should be a signed integral.
     using Index = TGraphIndex;
+    using IndexVector = std::vector<Index>;
 
     struct PackInfo
     {
         int remote_rank;
-        std::vector<Index> send_idx;
-        std::vector<Index> recv_idx;
+        IndexVector send_idx;
+        IndexVector recv_idx;
     };
 
     CRSNodeGraph() = delete;
@@ -225,21 +226,21 @@ public:
         return global_number_indices_;
     }
 
-    inline const std::vector<Index>& offsets() const
+    inline const IndexVector& offsets() const
     {
         assert(is_built_);
         assert(row_ptr_.size() > 1);
         return row_ptr_;
     }
 
-    inline const std::vector<Index>& indices() const
+    inline const IndexVector& indices() const
     {
         assert(is_built_);
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
         return primary_indices_;
     }
 
-    inline const std::vector<Index>& diagonalIndicesOffset() const
+    inline const IndexVector& diagonalIndicesOffset() const
     {
         assert(is_built_);
         assert(static_cast<Index>(diagonal_row_offset_.size()) ==
@@ -346,16 +347,16 @@ protected:
     bool is_built_;
 
     // CRS data structures
-    std::vector<Index> row_ptr_;           // row offsets
-    std::vector<Index> primary_indices_;   // main column index order (sorted)
-    std::vector<Index> secondary_indices_; // complement column index order
+    IndexVector row_ptr_;           // row offsets
+    IndexVector primary_indices_;   // main column index order (sorted)
+    IndexVector secondary_indices_; // complement column index order
 
     // per row nnz
-    std::vector<Index> row_nnz_owned_; // nnz per row (owned)
-    std::vector<Index> row_nnz_ghost_; // nnz per row (total ghosts)
+    IndexVector row_nnz_owned_; // nnz per row (owned)
+    IndexVector row_nnz_ghost_; // nnz per row (total ghosts)
 
     // diagonal
-    std::vector<Index> diagonal_row_offset_; // index into *_indices_
+    IndexVector diagonal_row_offset_; // index into *_indices_
 
     Kokkos::View<double**> testView_;
 
@@ -378,7 +379,7 @@ protected:
     void sortPrimaryIndices_();
 
     static inline void permuteInPlace_(Index* indices,
-                                       const std::vector<Index>& permute)
+                                       const IndexVector& permute)
     {
         std::vector<bool> done(permute.size());
         for (Index i = 0; i < static_cast<Index>(permute.size()); ++i)
@@ -401,8 +402,8 @@ protected:
     }
 
     static inline void permuteCopy_(Index* indices,
-                                    std::vector<Index>& buffer,
-                                    const std::vector<Index>& permute)
+                                    IndexVector& buffer,
+                                    const IndexVector& permute)
     {
         buffer.resize(permute.size());
         for (Index i = 0; i < static_cast<Index>(permute.size()); i++)
@@ -420,11 +421,11 @@ private:
 
     Index filterGhostsForOwnerRank_(
         int& owner_rank,
-        std::vector<Index>::const_iterator ghost_start, // must be sorted
-        const std::vector<Index>::const_iterator ghost_end,
+        IndexVector::const_iterator ghost_start, // must be sorted
+        const IndexVector::const_iterator ghost_end,
         const int myrank, // of caller
         const int size,
-        const std::vector<Index>& n_local_nodes) const;
+        const IndexVector& n_local_nodes) const;
 };
 
 } /* namespace linearSolver */

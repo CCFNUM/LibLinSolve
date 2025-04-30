@@ -333,10 +333,10 @@ int ContextPETSc<N>::copyCoefficients_()
     // TODO: [fab4100@posteo.net; 2024-10-14] assertion can be removed after
     // testing
     assert(A.getMemoryLayout() & GraphLayout::ColumnIndexOrder__Global);
-    std::vector<Index> row_nnz;
-    std::vector<Index> row_idx;
-    std::vector<Index> col_idx;
-    std::vector<typename Matrix::DataType> values;
+    IndexVector row_nnz;
+    IndexVector row_idx;
+    IndexVector col_idx;
+    Vector values;
     for (Index i = 0; i < A.nRows(); i++)
     {
         matrixLayout::blockRowToRowMajor(i,

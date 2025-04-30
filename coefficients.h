@@ -29,7 +29,7 @@ public:
     using DataType = typename Matrix::DataType;
     using Vector = typename Matrix::Vector;
     using Index = typename Matrix::Index;
-    using IndexVector = std::vector<Index>;
+    using IndexVector = typename Matrix::IndexVector;
     using Matrix::BLOCKSIZE;
 
 private:

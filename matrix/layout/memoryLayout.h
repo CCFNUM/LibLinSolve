@@ -20,10 +20,10 @@ template <typename Matrix>
 void blockRowToRowMajor(const typename Matrix::Index block_row_idx,
                         const Matrix& A,
                         std::span<const typename Matrix::Index> block_col_idx,
-                        std::vector<typename Matrix::Index>& row_nnz,
-                        std::vector<typename Matrix::Index>& row_idx,
-                        std::vector<typename Matrix::Index>& col_idx,
-                        std::vector<typename Matrix::DataType>& values)
+                        Matrix::IndexVector& row_nnz,
+                        Matrix::IndexVector& row_idx,
+                        Matrix::IndexVector& col_idx,
+                        Matrix::Vector& values)
 {
     using Index = typename Matrix::Index;
     using DataType = typename Matrix::DataType;

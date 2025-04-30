@@ -191,9 +191,9 @@ template <size_t N>
 void CRSMatrix<N>::writeMatrix_(const char* name) const
 {
     // convert layout from blocked to row based
-    std::vector<Index> offsets_row(BLOCKSIZE * nRows() + 1);
-    std::vector<Index> indices_row(this->nnz());
-    std::vector<DataType> values_row(this->nnz());
+    IndexVector offsets_row(BLOCKSIZE * nRows() + 1);
+    IndexVector indices_row(this->nnz());
+    Vector values_row(this->nnz());
 
     Index* dst_row = &offsets_row[0];
     Index* dst_col = &indices_row[0];

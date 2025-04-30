@@ -30,6 +30,7 @@ class CRSMatrix : public CRSConnectivity
 public:
     using MemoryLayout = GraphLayout;
     using Index = CRSConnectivity::Index;
+    using IndexVector = CRSConnectivity::IndexVector;
     using DataType = TRealSolver;
     using Vector = std::vector<DataType>;
 
@@ -57,7 +58,7 @@ private:
 
 protected:
     MemoryLayout memory_layout_;
-    std::vector<DataType> values_; // flat values array
+    Vector values_; // flat values array
 
 public:
     CRSMatrix() = delete;

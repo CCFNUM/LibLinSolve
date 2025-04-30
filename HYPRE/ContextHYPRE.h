@@ -383,10 +383,10 @@ void ContextHYPRE<N>::copyLocalToHYPRE_()
 
     // TODO: [fab4100@posteo.net; 2024-03-27] verify HYPRE types and
     // scalar/Index are consistent
-    std::vector<Index> row_nnz;
-    std::vector<Index> row_idx;
-    std::vector<Index> col_idx;
-    std::vector<typename Matrix::DataType> values;
+    IndexVector row_nnz;
+    IndexVector row_idx;
+    IndexVector col_idx;
+    Vector values;
 
     // matrix
     HYPRE_IJMatrixInitialize(A_hypre_);
@@ -428,7 +428,7 @@ template <size_t N>
 void ContextHYPRE<N>::copyHYPREToLocal_()
 {
     Vector& x = this->getXVector();
-    std::vector<Index> col_idx(n_unknowns);
+    IndexVector col_idx(n_unknowns);
     std::iota(col_idx.begin(), col_idx.end(), i_lower_);
     HYPRE_IJVectorGetValues(x_hypre_, n_unknowns, col_idx.data(), x.data());
 }

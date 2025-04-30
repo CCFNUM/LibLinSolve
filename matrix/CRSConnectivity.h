@@ -20,6 +20,7 @@ class CRSConnectivity
 {
 public:
     using Index = CRSNodeGraph::Index;
+    using IndexVector = CRSNodeGraph::IndexVector;
 
     CRSConnectivity() = delete;
 
@@ -82,7 +83,7 @@ public:
         return graph_->offsets().data();
     }
 
-    inline const std::vector<Index>& offsetsRef() const
+    inline const IndexVector& offsetsRef() const
     {
         return graph_->offsets();
     }
@@ -92,7 +93,7 @@ public:
         return graph_->indices().data();
     }
 
-    inline const std::vector<Index>& indicesRef() const
+    inline const IndexVector& indicesRef() const
     {
         return graph_->indices();
     }
@@ -102,7 +103,7 @@ public:
         return graph_->diagonalIndicesOffset().data();
     }
 
-    inline const std::vector<Index>& diagOffsetRef() const
+    inline const IndexVector& diagOffsetRef() const
     {
         return graph_->diagonalIndicesOffset();
     }

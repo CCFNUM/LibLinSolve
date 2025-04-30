@@ -22,6 +22,7 @@ class testSquareMatrix : public CRSNodeGraph
 public:
     using Context = ::linearSolver::Context<N>;
     using Index = typename Context::Index;
+    using IndexVector = typename Context::IndexVector;
 
     static constexpr Index BLOCKSIZE = N;
 
@@ -52,7 +53,7 @@ public:
         const int size = this->commSize();
 
         Index n_rows = 0;
-        std::vector<Index> decomposition(size);
+        IndexVector decomposition(size);
         MPI_Reduce(&n_,
                    &n_rows,
                    1,

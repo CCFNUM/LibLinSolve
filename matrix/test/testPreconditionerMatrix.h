@@ -31,6 +31,7 @@ public:
     using Base::secondary_indices_;
 
     using Index = typename Base::Index;
+    using IndexVector = typename Base::IndexVector;
     using Context = typename Base::Context;
     using Matrix = typename Context::Matrix;
     using Vector = typename Context::Vector;
@@ -166,8 +167,6 @@ private:
 
     void buildGraph_() override
     {
-        using IndexVector = std::vector<Index>;
-
         Index n_global = 0;
         const Index n_local = this->getDimension();
         MPI_Allreduce(&n_local,

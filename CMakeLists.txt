@@ -106,6 +106,8 @@ target_include_directories(${libLinSolve}
     ${libLinSolveIncludes}
 )
 target_link_libraries(${libLinSolve} ${MPI_CXX_LIBRARIES})
+
+# TODO: enable/disable kokkos support entirely
 target_link_libraries(${libLinSolve} Kokkos::kokkos)
 
 if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
