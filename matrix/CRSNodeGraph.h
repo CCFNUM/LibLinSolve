@@ -6,6 +6,7 @@
 #ifndef CRSNODEGRAPH_H_UI1807EK
 #define CRSNODEGRAPH_H_UI1807EK
 
+#include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -355,6 +356,8 @@ protected:
 
     // diagonal
     std::vector<Index> diagonal_row_offset_; // index into *_indices_
+
+    Kokkos::View<double**> testView_;
 
     // MPI
     Index global_row_offset_;

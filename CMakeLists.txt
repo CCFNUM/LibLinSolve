@@ -43,6 +43,8 @@ find_package(MPI REQUIRED)
 add_compile_options("-DOMPI_SKIP_MPICXX")
 add_compile_options("-DMPICH_SKIP_MPICXX")
 
+find_package(Kokkos REQUIRED)
+
 # Optional Trilinos linear solver support
 # Set -DTrilinos_DIR=<path> in CMake config
 # Requires Belos, Ifpack2, and Tpetra packages to be enabled in Trilinos
@@ -104,6 +106,7 @@ target_include_directories(${libLinSolve}
     ${libLinSolveIncludes}
 )
 target_link_libraries(${libLinSolve} ${MPI_CXX_LIBRARIES})
+target_link_libraries(${libLinSolve} Kokkos::kokkos)
 
 if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
     target_include_directories(${libLinSolve}

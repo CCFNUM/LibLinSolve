@@ -1,0 +1,2 @@
+kokkos must be compiled with -fPIC, 
+i.e. trilinos/kokkos with -DCMAKE_POSITION_INDEPENDENT_CODE ON
