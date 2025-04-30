@@ -1,0 +1,6 @@
+[wrap-git]
+url = ../../../.git
+revision = head
+
+[provide]
+libLinSolve_main = libLinSolve_dep

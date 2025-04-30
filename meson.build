@@ -156,7 +156,7 @@ install_subdir('matrix/test', install_dir : 'include')
 
 libLinSolve_dep = declare_dependency(
   include_directories: hdr,
-  link_with: libLinSolve,
+  link_with: libs,
   dependencies: deps
 )
 

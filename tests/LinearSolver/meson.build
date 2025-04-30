@@ -14,9 +14,9 @@ project('LinearSolver', ['cpp'],
   ]
 )
 
-libLinSolve = dependency('LinSolve', required: true)
+libLinSolve = subproject('libLinSolve')
 yaml_cpp = dependency('yaml-cpp', required: true)
-deps = [libLinSolve, yaml_cpp]
+deps = [libLinSolve.get_variable('libLinSolve_dep'), yaml_cpp]
 
 mpi_implementation = get_option('MPI')
 if mpi_implementation == 'mpich'

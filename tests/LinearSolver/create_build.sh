@@ -49,8 +49,6 @@ export PKG_CONFIG_PATH=\${PETSC_LIB}/pkgconfig:\${PKG_CONFIG_PATH}
 libHYPRE=\${LOCAL}/hypre_${mpi_impl}_release/lib64
 export CMAKE_MODULE_PATH=\${libHYPRE}/cmake:\${CMAKE_MODULE_PATH}
 export LD_LIBRARY_PATH=\${libHYPRE}:\${LD_LIBRARY_PATH}
-
-export PKG_CONFIG_PATH=\${LOCAL}/linsolve_${mpi_impl}_release/lib64/pkgconfig:\${PKG_CONFIG_PATH}
 EOF
 
 source "${build_dir}/build_env.sh"
