@@ -28,8 +28,8 @@ class basic_onullstream : public std::basic_ostream<cT, traits>
 {
 public:
     basic_onullstream()
-        : std::basic_ios<cT, traits>(&sbuf_),
-          std::basic_ostream<cT, traits>(&sbuf_)
+        : std::basic_ios<cT, traits>(&sbuf_), std::basic_ostream<cT, traits>(
+                                                  &sbuf_)
     {
         this->init(&sbuf_);
     }

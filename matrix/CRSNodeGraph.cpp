@@ -392,7 +392,7 @@ void CRSNodeGraph::computePackInfos_()
     std::sort(permute.begin(),
               permute.end(),
               [&global_ghost](const size_t i, const size_t j)
-    { return global_ghost[i] < global_ghost[j]; });
+              { return global_ghost[i] < global_ghost[j]; });
     CRSNodeGraph::permuteInPlace_(global_ghost.data(), permute);
     CRSNodeGraph::permuteInPlace_(local_ghost.data(), permute);
 
@@ -616,7 +616,7 @@ void CRSNodeGraph::sortPrimaryIndices_()
         std::sort(permute.begin(),
                   permute.end(),
                   [primary_idx](const size_t i, const size_t j)
-        { return primary_idx[i] < primary_idx[j]; });
+                  { return primary_idx[i] < primary_idx[j]; });
         CRSNodeGraph::permuteCopy_(primary_idx.data(), buffer, permute);
 
         if (has_secondary)
