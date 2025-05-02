@@ -43,7 +43,12 @@ find_package(MPI REQUIRED)
 add_compile_options("-DOMPI_SKIP_MPICXX")
 add_compile_options("-DMPICH_SKIP_MPICXX")
 
-find_package(Kokkos REQUIRED)
+# TODO: enable/disable kokkos support entirely
+if(USE_KOKKOS)
+    message(STATUS "Enabling Kokkos support")
+    add_compile_options("-DUSE_KOKKOS")
+    find_package(Kokkos REQUIRED)
+endif()
 
 # Optional Trilinos linear solver support
 # Set -DTrilinos_DIR=<path> in CMake config

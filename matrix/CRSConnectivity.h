@@ -107,7 +107,16 @@ public:
     {
         return graph_->diagonalIndicesOffset();
     }
-
+#ifdef USE_KOKKOS
+    inline IndexVector::ConstSubviewType rowCols(Index iRow) const
+    {
+        assert(0 <= iRow);
+        assert(iRow < this->nRows());
+        const auto& row_ptr = this->offsetsRef();
+        return this->indicesRef().subview_const(row_ptr[iRow],
+                                                row_ptr[iRow + 1]);
+    }
+#else
     inline std::span<const Index> rowCols(Index iRow) const
     {
         assert(0 <= iRow);
@@ -116,6 +125,7 @@ public:
         return std::span<const Index>(this->indicesRef())
             .subspan(row_ptr[iRow], row_ptr[iRow + 1] - row_ptr[iRow]);
     }
+#endif
 
     inline Index localToGlobal(Index localID) const
     {

@@ -32,7 +32,11 @@ public:
     using Index = CRSConnectivity::Index;
     using IndexVector = CRSConnectivity::IndexVector;
     using DataType = TRealSolver;
+#ifdef USE_KOKKOS
+    using Vector = MyNgpVector<DataType>;
+#else
     using Vector = std::vector<DataType>;
+#endif
 
     static constexpr Index BLOCKSIZE = N;
 
@@ -97,7 +101,21 @@ public:
     {
         return values_.data();
     }
+#ifdef USE_KOKKOS
+    inline Vector::SubviewType valuesRef() const
+    {
+        return values_.subview_all();
+    }
 
+    inline Vector::SubviewType rowVals(Index iRow) const
+    {
+        assert(0 <= iRow);
+        assert(iRow < this->nRows());
+        const auto& offsets = this->offsetsRef();
+        return values_.subview(BLOCKSIZE * BLOCKSIZE * offsets[iRow],
+                               BLOCKSIZE * BLOCKSIZE * offsets[iRow + 1]);
+    }
+#else
     inline std::span<DataType> valuesRef()
     {
         return std::span<DataType>(values_);
@@ -127,6 +145,7 @@ public:
             BLOCKSIZE * BLOCKSIZE * offsets[iRow],
             BLOCKSIZE * BLOCKSIZE * (offsets[iRow + 1] - offsets[iRow]));
     }
+#endif
 
     inline DataType& dofDiag(Index iRow, Index dof = 0)
     {
@@ -155,7 +174,17 @@ public:
         return &values_[BLOCKSIZE * BLOCKSIZE * offsets[iRow] +
                         BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
     };
-
+#ifdef USE_KOKKOS // TODO: this is a hack. i think diag should be accessed as maybe a subview?
+    inline DataType* diag(Index iRow) const
+    {
+        assert(0 <= iRow);
+        assert(iRow < this->nRows());
+        const auto& offsets = this->offsetsRef();
+        const auto& diag_offsets = this->diagOffsetRef();
+        return &values_[BLOCKSIZE * BLOCKSIZE * offsets[iRow] +
+                        BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
+    };
+#else
     inline const DataType* diag(Index iRow) const
     {
         assert(0 <= iRow);
@@ -165,7 +194,7 @@ public:
         return &values_[BLOCKSIZE * BLOCKSIZE * offsets[iRow] +
                         BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
     };
-
+#endif
     // layout conversions
     MemoryLayout getMemoryLayout() const
     {

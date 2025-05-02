@@ -6,7 +6,10 @@
 #ifndef CRSNODEGRAPH_H_UI1807EK
 #define CRSNODEGRAPH_H_UI1807EK
 
+#ifdef USE_KOKKOS
 #include <Kokkos_Core.hpp>
+#include <MyNgpVector.h>
+#endif
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -142,7 +145,11 @@ public:
     // Main graph index type.  This type is used to compute differences and
     // should be a signed integral.
     using Index = TGraphIndex;
+#ifdef USE_KOKKOS
+    using IndexVector = MyNgpVector<Index>;
+#else
     using IndexVector = std::vector<Index>;
+#endif
 
     struct PackInfo
     {
@@ -281,13 +288,19 @@ public:
         assert(i_row < this->nRows());
         return row_nnz_owned_[i_row];
     }
-
+#ifdef USE_KOKKOS
+    inline IndexVector::ConstSubviewType nnzOwned() const
+    {
+        assert(is_built_);
+        return row_nnz_owned_.subview_all_const();
+    }
+#else
     inline std::span<const Index> nnzOwned() const
     {
         assert(is_built_);
         return std::span<const Index>(row_nnz_owned_);
     }
-
+#endif
     inline Index nnzGhost(const Index i_row) const
     {
         assert(is_built_);
@@ -296,12 +309,19 @@ public:
         return row_nnz_ghost_[i_row];
     }
 
+#ifdef USE_KOKKOS
+    inline IndexVector::ConstSubviewType nnzGhost() const
+    {
+        assert(is_built_);
+        return row_nnz_ghost_.subview_all_const();
+    }
+#else
     inline std::span<const Index> nnzGhost() const
     {
         assert(is_built_);
         return std::span<const Index>(row_nnz_ghost_);
     }
-
+#endif
     inline Index localToGlobalIndex(const Index j_local) const
     {
         // only defined if `j_local` is owned
@@ -325,13 +345,19 @@ public:
         // clang-format on
         return j_global - this->global_row_offset_;
     }
+#ifdef USE_KOKKOS
+    IndexVector::ConstSubviewType localIndices() const;
+    IndexVector::ConstSubviewType globalIndices() const;
 
+    IndexVector::ConstSubviewType rowLocalIndices(const Index i_row) const;
+    IndexVector::ConstSubviewType rowGlobalIndices(const Index i_row) const;
+#else
     std::span<const Index> localIndices() const;
     std::span<const Index> globalIndices() const;
 
     std::span<const Index> rowLocalIndices(const Index i_row) const;
     std::span<const Index> rowGlobalIndices(const Index i_row) const;
-
+#endif
     void getMemoryFootprint(MemoryFootprint& data) const;
     void serialize(std::ofstream& out) const;
     void deserialize(std::ifstream& in);
@@ -358,8 +384,6 @@ protected:
     // diagonal
     IndexVector diagonal_row_offset_; // index into *_indices_
 
-    Kokkos::View<double**> testView_;
-
     // MPI
     Index global_row_offset_;
     Index global_number_nodes_;
@@ -379,7 +403,7 @@ protected:
     void sortPrimaryIndices_();
 
     static inline void permuteInPlace_(Index* indices,
-                                       const IndexVector& permute)
+                                       const std::vector<Index>& permute)
     {
         std::vector<bool> done(permute.size());
         for (Index i = 0; i < static_cast<Index>(permute.size()); ++i)
@@ -402,8 +426,8 @@ protected:
     }
 
     static inline void permuteCopy_(Index* indices,
-                                    IndexVector& buffer,
-                                    const IndexVector& permute)
+                                    std::vector<Index>& buffer,
+                                    const std::vector<Index>& permute)
     {
         buffer.resize(permute.size());
         for (Index i = 0; i < static_cast<Index>(permute.size()); i++)
@@ -421,11 +445,11 @@ private:
 
     Index filterGhostsForOwnerRank_(
         int& owner_rank,
-        IndexVector::const_iterator ghost_start, // must be sorted
-        const IndexVector::const_iterator ghost_end,
+        std::vector<Index>::const_iterator ghost_start, // must be sorted
+        const std::vector<Index>::const_iterator ghost_end,
         const int myrank, // of caller
         const int size,
-        const IndexVector& n_local_nodes) const;
+        const std::vector<Index>& n_local_nodes) const;
 };
 
 } /* namespace linearSolver */

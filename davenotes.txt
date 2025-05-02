@@ -1,2 +1,7 @@
 kokkos must be compiled with -fPIC, 
 i.e. trilinos/kokkos with -DCMAKE_POSITION_INDEPENDENT_CODE ON
+****************************************************************
+TODO
+- myNgpVector: add kokkos_if_on_host etc.
+- myNgpVector: mark functions as host/device or host explicitly (no resizing from device)
+- linearSolver: mark required functions as Kokkos_functions 

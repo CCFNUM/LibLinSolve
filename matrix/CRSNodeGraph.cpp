@@ -77,13 +77,94 @@ void CRSNodeGraph::buildGraph()
     }
     // c.)
     assert(n_owned_nodes_ == static_cast<Index>(diagonal_row_offset_.size()));
+#ifdef USE_KOKKOS
+    for (size_t k = 0; k < diagonal_row_offset_.size(); ++k)
+    {
+        const Index i = diagonal_row_offset_[k];
+        assert(i >= 0);
+    }
+#else
     for (const Index i : diagonal_row_offset_)
     {
         assert(i >= 0);
     }
+#endif
 #endif /* NDEBUG */
 }
 
+#ifdef USE_KOKKOS
+CRSNodeGraph::IndexVector::ConstSubviewType
+CRSNodeGraph::localIndices() const // TODO: const ?
+{
+    if (this->isLocalColumnOrder())
+    {
+        assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
+        return primary_indices_.subview_all_const(); // sorted
+    }
+    else
+    {
+        assert(static_cast<Index>(secondary_indices_.size()) ==
+               this->nIndices());
+        return secondary_indices_.subview_all_const(); // not sorted
+    }
+}
+
+CRSNodeGraph::IndexVector::ConstSubviewType
+CRSNodeGraph::globalIndices() const // TODO: const ?
+{
+    if (this->isGlobalColumnOrder())
+    {
+        assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
+        return primary_indices_.subview_all_const(); // sorted
+    }
+    else
+    {
+        assert(static_cast<Index>(secondary_indices_.size()) ==
+               this->nIndices());
+        return secondary_indices_.subview_all_const(); // not sorted
+    }
+}
+
+CRSNodeGraph::IndexVector::ConstSubviewType
+CRSNodeGraph::rowLocalIndices(const Index i_row) const // TODO: const?
+{
+    assert(0 <= i_row);
+    assert(i_row < this->nOwnedNodes());
+    if (this->isLocalColumnOrder())
+    {
+        assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
+        return primary_indices_.subview_const(row_ptr_[i_row],
+                                              row_ptr_[i_row + 1]);
+    }
+    else
+    {
+        assert(static_cast<Index>(secondary_indices_.size()) ==
+               this->nIndices());
+        return secondary_indices_.subview_const(row_ptr_[i_row],
+                                                row_ptr_[i_row + 1]);
+    }
+}
+
+CRSNodeGraph::IndexVector::ConstSubviewType
+CRSNodeGraph::rowGlobalIndices(const Index i_row) const // TODO: const?
+{
+    assert(0 <= i_row);
+    assert(i_row < this->nOwnedNodes());
+    if (this->isGlobalColumnOrder())
+    {
+        assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
+        return primary_indices_.subview_const(row_ptr_[i_row],
+                                              row_ptr_[i_row + 1]);
+    }
+    else
+    {
+        assert(static_cast<Index>(secondary_indices_.size()) ==
+               this->nIndices());
+        return secondary_indices_.subview_const(row_ptr_[i_row],
+                                                row_ptr_[i_row + 1]);
+    }
+}
+#else
 std::span<const CRSNodeGraph::Index> CRSNodeGraph::localIndices() const
 {
     if (this->isLocalColumnOrder())
@@ -153,6 +234,7 @@ CRSNodeGraph::rowGlobalIndices(const Index i_row) const
             .subspan(row_ptr_[i_row], row_ptr_[i_row + 1] - row_ptr_[i_row]);
     }
 }
+#endif
 
 void CRSNodeGraph::getMemoryFootprint(MemoryFootprint& data) const
 {
@@ -199,6 +281,27 @@ void CRSNodeGraph::serialize(std::ofstream& out) const
     v64 = primary_indices_.size();
     out.write(p64, sizeof(uint64_t));
 
+#ifdef USE_KOKKOS
+    // data
+    for (size_t k = 0; k < row_ptr_.size(); ++k)
+    {
+        const Index i = row_ptr_[k];
+        v64 = i;
+        out.write(p64, sizeof(uint64_t));
+    }
+    for (size_t k = 0; k < primary_indices_.size(); ++k)
+    {
+        const Index i = primary_indices_[k];
+        v64 = i;
+        out.write(p64, sizeof(uint64_t));
+    }
+    for (size_t k = 0; k < secondary_indices_.size(); ++k)
+    {
+        const Index i = secondary_indices_[k];
+        v64 = i;
+        out.write(p64, sizeof(uint64_t));
+    }
+#else
     // data
     for (const Index i : row_ptr_)
     {
@@ -215,6 +318,7 @@ void CRSNodeGraph::serialize(std::ofstream& out) const
         v64 = i;
         out.write(p64, sizeof(uint64_t));
     }
+#endif
 }
 
 void CRSNodeGraph::deserialize(std::ifstream& in)
@@ -250,11 +354,11 @@ void CRSNodeGraph::deserialize(std::ifstream& in)
 
 typename CRSNodeGraph::Index CRSNodeGraph::filterGhostsForOwnerRank_(
     int& owner_rank,
-    CRSNodeGraph::IndexVector::const_iterator ghost_start,
-    const CRSNodeGraph::IndexVector::const_iterator ghost_end,
+    std::vector<typename CRSNodeGraph::Index>::const_iterator ghost_start,
+    const std::vector<typename CRSNodeGraph::Index>::const_iterator ghost_end,
     const int myrank,
     const int size,
-    const CRSNodeGraph::IndexVector& n_local_nodes) const
+    const std::vector<typename CRSNodeGraph::Index>& n_local_nodes) const
 {
     const int r0 = (*ghost_start < this->global_row_offset_) ? 0 : myrank + 1;
     const int r1 = (*ghost_start < this->global_row_offset_) ? myrank : size;
@@ -293,7 +397,7 @@ void CRSNodeGraph::computePackInfos_()
         return;
     }
 
-    IndexVector rank_n_nodes(size_);
+    std::vector<Index> rank_n_nodes(size_);
     MPI_Allgather(&n_owned_nodes_,
                   1,
                   MPIDataType<Index>::type(),
@@ -303,8 +407,8 @@ void CRSNodeGraph::computePackInfos_()
                   comm_);
 
     // 1.) determine locally required ghosts
-    IndexVector global_ghost;
-    IndexVector local_ghost;
+    std::vector<Index> global_ghost;
+    std::vector<Index> local_ghost;
     std::unordered_set<Index> ghost_query;
     const auto local_idx = this->localIndices();
     const auto global_idx = this->globalIndices();
@@ -365,7 +469,7 @@ void CRSNodeGraph::computePackInfos_()
     assert(static_cast<Index>(global_ghost.size()) <= this->n_ghost_nodes_);
 
     // sort ghosts based on global indices
-    IndexVector permute(global_ghost.size());
+    std::vector<Index> permute(global_ghost.size());
     std::iota(permute.begin(), permute.end(), 0);
     std::sort(permute.begin(),
               permute.end(),
@@ -376,7 +480,7 @@ void CRSNodeGraph::computePackInfos_()
 
     // 2.) assign recv indices and prepare request buffer
     std::vector<PackInfo> infos(size_);
-    std::vector<IndexVector> request_ghosts(size_);
+    std::vector<std::vector<Index>> request_ghosts(size_);
     auto l_ghost = local_ghost.cbegin();
     auto g_ghost = global_ghost.cbegin();
     while (g_ghost != global_ghost.end())
@@ -400,8 +504,8 @@ void CRSNodeGraph::computePackInfos_()
     }
 
     // 3.) inform other ranks what messages I expect and exchange indices
-    IndexVector n_expected(size_, 0);
-    IndexVector n_send_count(size_, 0);
+    std::vector<Index> n_expected(size_, 0);
+    std::vector<Index> n_send_count(size_, 0);
     for (int i = 0; i < size_; i++)
     {
         n_expected[i] = static_cast<Index>(infos[i].recv_idx.size());
@@ -580,15 +684,19 @@ void CRSNodeGraph::sortPrimaryIndices_()
     }
 #endif /* NDEBUG */
 
-    IndexVector buffer;
-    IndexVector permute;
+    std::vector<Index> buffer;
+    std::vector<Index> permute;
     for (Index i_row = 0; i_row < n_owned_nodes_; ++i_row)
     {
+#ifdef USE_KOKKOS
+        IndexVector::SubviewType primary_idx =
+            primary_indices_.subview(row_ptr_[i_row], row_ptr_[i_row + 1]);
+#else
         std::span<Index> primary_idx =
             std::span<Index>(primary_indices_)
                 .subspan(row_ptr_[i_row],
                          row_ptr_[i_row + 1] - row_ptr_[i_row]);
-
+#endif
         permute.resize(primary_idx.size());
         std::iota(permute.begin(), permute.end(), 0);
         std::sort(permute.begin(),
@@ -599,10 +707,15 @@ void CRSNodeGraph::sortPrimaryIndices_()
 
         if (has_secondary)
         {
+#ifdef USE_KOKKOS
+            IndexVector::SubviewType secondary_idx = secondary_indices_.subview(
+                row_ptr_[i_row], row_ptr_[i_row + 1]);
+#else
             std::span<Index> secondary_idx =
                 std::span<Index>(secondary_indices_)
                     .subspan(row_ptr_[i_row],
                              row_ptr_[i_row + 1] - row_ptr_[i_row]);
+#endif
             CRSNodeGraph::permuteCopy_(secondary_idx.data(), buffer, permute);
         }
     }

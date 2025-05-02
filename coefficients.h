@@ -96,7 +96,27 @@ public:
         zeroSOL();
         zeroRES();
     }
+#ifdef USE_KOKKOS
+    void zeroLHS()
+    {
+        this->values_.fill_host(0);
+    }
 
+    void zeroRHS()
+    {
+        b_.fill_host(0);
+    }
+
+    void zeroSOL()
+    {
+        x_.fill_host(0);
+    }
+
+    void zeroRES()
+    {
+        r_.fill_host(0);
+    }
+#else
     void zeroLHS()
     {
         std::fill(this->values_.begin(), this->values_.end(), 0);
@@ -116,6 +136,7 @@ public:
     {
         std::fill(r_.begin(), r_.end(), 0);
     }
+#endif
 
     Index nCoefficients() const
     {
