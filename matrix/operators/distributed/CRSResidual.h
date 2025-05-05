@@ -43,21 +43,22 @@ void CRSResidual(const CRSMatrix<N>& A,
     // r = b - Ax
 #if BLOCKING
     sync.waitAll(x);
-    for (Index i = 0; i < A.nRows(); i++)
-    {
-        const auto local_idx = graph->rowLocalIndices(i);
-        const auto coeffs = A.rowVals(i);
+    assert(false && "RE-ADD THIS PART");
+    // for (Index i = 0; i < A.nRows(); i++)
+    // {
+    //     const auto local_idx = graph->rowLocalIndices(i);
+    //     const auto coeffs = A.rowVals(i);
 
-        Real* r_blk = &r[BLOCKSIZE * i];
-        const Real* b_blk = &b[BLOCKSIZE * i];
-        BlockMatrix::vectorAssign<BLOCKSIZE>(b_blk, r_blk);
-        for (Index j = 0; j < static_cast<Index>(local_idx.size()); j++)
-        {
-            const Real* a_blk = &coeffs[BLOCKSIZE * BLOCKSIZE * j];
-            const Real* x_blk = &x[BLOCKSIZE * local_idx[j]];
-            BlockMatrix::matrixVectorSub<BLOCKSIZE>(a_blk, x_blk, r_blk);
-        }
-    }
+    //     Real* r_blk = &r[BLOCKSIZE * i];
+    //     const Real* b_blk = &b[BLOCKSIZE * i];
+    //     BlockMatrix::vectorAssign<BLOCKSIZE>(b_blk, r_blk);
+    //     for (Index j = 0; j < static_cast<Index>(local_idx.size()); j++)
+    //     {
+    //         const Real* a_blk = &coeffs[BLOCKSIZE * BLOCKSIZE * j];
+    //         const Real* x_blk = &x[BLOCKSIZE * local_idx[j]];
+    //         BlockMatrix::matrixVectorSub<BLOCKSIZE>(a_blk, x_blk, r_blk);
+    //     }
+    // }
 #else
     // WIP: [fab4100@posteo.net; 2024-04-18] asynchronous
 #endif /* BLOCKING */

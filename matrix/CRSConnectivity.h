@@ -108,7 +108,7 @@ public:
         return graph_->diagonalIndicesOffset();
     }
 #ifdef USE_KOKKOS
-    inline IndexVector::ConstSubviewType rowCols(Index iRow) const
+    inline auto rowCols(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());

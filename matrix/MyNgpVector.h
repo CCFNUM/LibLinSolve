@@ -208,30 +208,47 @@ protected:
     }
 
 public:
-    using SubviewType =
+    using SubviewTypeHost =
+        typename Kokkos::Subview<HostType, Kokkos::pair<unsigned, unsigned>>;
+    using ConstSubviewTypeHost =
+        typename Kokkos::Subview<Kokkos::View<const Datatype*, HostSpace>,
+                                 Kokkos::pair<unsigned, unsigned>>;
+    using SubviewTypeDevice =
         typename Kokkos::Subview<DeviceType, Kokkos::pair<unsigned, unsigned>>;
-    using ConstSubviewType =
+    using ConstSubviewTypeDevice =
         typename Kokkos::Subview<Kokkos::View<const Datatype*, DeviceSpace>,
                                  Kokkos::pair<unsigned, unsigned>>;
 
-    SubviewType subview(size_t begin, size_t end) const
+    auto subview(size_t begin, size_t end) const
     {
-        return Kokkos::subview(hostVals, Kokkos::make_pair(begin, end));
+        KOKKOS_IF_ON_DEVICE(
+            return Kokkos::subview(deviceVals, Kokkos::make_pair(begin, end));)
+
+        KOKKOS_IF_ON_HOST(
+            return Kokkos::subview(hostVals, Kokkos::make_pair(begin, end));)
     }
 
-    ConstSubviewType subview_const(size_t begin, size_t end) const
+    auto subview_const(size_t begin, size_t end) const
     {
-        return Kokkos::subview(hostVals, Kokkos::make_pair(begin, end));
+        KOKKOS_IF_ON_DEVICE(return ConstSubviewTypeDevice(Kokkos::subview(
+            deviceVals, Kokkos::make_pair(begin, end)));)
+        KOKKOS_IF_ON_HOST(return ConstSubviewTypeHost(Kokkos::subview(
+            hostVals, Kokkos::make_pair(begin, end)));)
     }
 
-    SubviewType subview_all() const
+    auto subview_all() const
     {
-        return Kokkos::subview(hostVals, Kokkos::ALL);
+        KOKKOS_IF_ON_DEVICE(return Kokkos::subview(deviceVals, Kokkos::ALL);)
+
+        KOKKOS_IF_ON_HOST(return Kokkos::subview(hostVals, Kokkos::ALL);)
     }
 
-    ConstSubviewType subview_all_const() const
+    auto subview_all_const() const
     {
-        return Kokkos::subview(hostVals, Kokkos::ALL);
+        KOKKOS_IF_ON_DEVICE(return ConstSubviewTypeDevice(Kokkos::subview(
+            deviceVals, Kokkos::ALL));)
+        KOKKOS_IF_ON_HOST(return ConstSubviewTypeHost(
+                                     Kokkos::subview(hostVals, Kokkos::ALL));)
     }
 
 private:

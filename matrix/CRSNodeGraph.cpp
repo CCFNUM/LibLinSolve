@@ -93,8 +93,7 @@ void CRSNodeGraph::buildGraph()
 }
 
 #ifdef USE_KOKKOS
-CRSNodeGraph::IndexVector::ConstSubviewType
-CRSNodeGraph::localIndices() const // TODO: const ?
+auto CRSNodeGraph::localIndices() const // TODO: const ?
 {
     if (this->isLocalColumnOrder())
     {
@@ -109,8 +108,7 @@ CRSNodeGraph::localIndices() const // TODO: const ?
     }
 }
 
-CRSNodeGraph::IndexVector::ConstSubviewType
-CRSNodeGraph::globalIndices() const // TODO: const ?
+auto CRSNodeGraph::globalIndices() const // TODO: const ?
 {
     if (this->isGlobalColumnOrder())
     {
@@ -125,8 +123,7 @@ CRSNodeGraph::globalIndices() const // TODO: const ?
     }
 }
 
-CRSNodeGraph::IndexVector::ConstSubviewType
-CRSNodeGraph::rowLocalIndices(const Index i_row) const // TODO: const?
+auto CRSNodeGraph::rowLocalIndices(const Index i_row) const // TODO: const?
 {
     assert(0 <= i_row);
     assert(i_row < this->nOwnedNodes());
@@ -145,8 +142,7 @@ CRSNodeGraph::rowLocalIndices(const Index i_row) const // TODO: const?
     }
 }
 
-CRSNodeGraph::IndexVector::ConstSubviewType
-CRSNodeGraph::rowGlobalIndices(const Index i_row) const // TODO: const?
+auto CRSNodeGraph::rowGlobalIndices(const Index i_row) const // TODO: const?
 {
     assert(0 <= i_row);
     assert(i_row < this->nOwnedNodes());
@@ -689,7 +685,7 @@ void CRSNodeGraph::sortPrimaryIndices_()
     for (Index i_row = 0; i_row < n_owned_nodes_; ++i_row)
     {
 #ifdef USE_KOKKOS
-        IndexVector::SubviewType primary_idx =
+        auto primary_idx =
             primary_indices_.subview(row_ptr_[i_row], row_ptr_[i_row + 1]);
 #else
         std::span<Index> primary_idx =
@@ -708,7 +704,7 @@ void CRSNodeGraph::sortPrimaryIndices_()
         if (has_secondary)
         {
 #ifdef USE_KOKKOS
-            IndexVector::SubviewType secondary_idx = secondary_indices_.subview(
+            auto secondary_idx = secondary_indices_.subview(
                 row_ptr_[i_row], row_ptr_[i_row + 1]);
 #else
             std::span<Index> secondary_idx =

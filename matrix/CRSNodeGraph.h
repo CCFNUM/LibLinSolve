@@ -289,7 +289,7 @@ public:
         return row_nnz_owned_[i_row];
     }
 #ifdef USE_KOKKOS
-    inline IndexVector::ConstSubviewType nnzOwned() const
+    inline auto nnzOwned() const
     {
         assert(is_built_);
         return row_nnz_owned_.subview_all_const();
@@ -310,7 +310,7 @@ public:
     }
 
 #ifdef USE_KOKKOS
-    inline IndexVector::ConstSubviewType nnzGhost() const
+    inline auto nnzGhost() const
     {
         assert(is_built_);
         return row_nnz_ghost_.subview_all_const();
@@ -346,11 +346,11 @@ public:
         return j_global - this->global_row_offset_;
     }
 #ifdef USE_KOKKOS
-    IndexVector::ConstSubviewType localIndices() const;
-    IndexVector::ConstSubviewType globalIndices() const;
+    auto localIndices() const;
+    auto globalIndices() const;
 
-    IndexVector::ConstSubviewType rowLocalIndices(const Index i_row) const;
-    IndexVector::ConstSubviewType rowGlobalIndices(const Index i_row) const;
+    auto rowLocalIndices(const Index i_row) const;
+    auto rowGlobalIndices(const Index i_row) const;
 #else
     std::span<const Index> localIndices() const;
     std::span<const Index> globalIndices() const;

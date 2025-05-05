@@ -174,7 +174,8 @@ public:
         return &values_[BLOCKSIZE * BLOCKSIZE * offsets[iRow] +
                         BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
     };
-#ifdef USE_KOKKOS // TODO: this is a hack. i think diag should be accessed as maybe a subview?
+#ifdef USE_KOKKOS // TODO: this is a hack. i think diag should be accessed as
+                  // maybe a subview?
     inline DataType* diag(Index iRow) const
     {
         assert(0 <= iRow);

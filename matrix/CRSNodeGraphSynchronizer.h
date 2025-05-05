@@ -82,8 +82,9 @@ public:
         assert(BLOCKSIZE * info->recv_idx.size() <= data.recv_buf.size());
 
         const T* recv_src = data.recv_buf.data();
-        for (const Index i : info->recv_idx)
+        for (size_t j = 0; j < info->recv_idx.size(); ++j)
         {
+            const Index i = info->recv_idx[j];
             assert(BLOCKSIZE * (i + 1) - 1 < static_cast<Index>(dst.size()));
             T* recv_dst = &dst[BLOCKSIZE * i];
             for (int k = 0; k < BLOCKSIZE; k++)
@@ -317,8 +318,9 @@ private:
 
         data.send_buf.resize(BLOCKSIZE * info->send_idx.size());
         T* send_dst = data.send_buf.data();
-        for (const Index i : info->send_idx)
+        for (size_t j = 0; j < info->send_idx.size(); ++j)
         {
+            const Index i = info->send_idx[j];
             assert(BLOCKSIZE * (i + 1) - 1 < BLOCKSIZE * graph_->nOwnedNodes());
             const T* send_src = &src[BLOCKSIZE * i];
             for (int k = 0; k < BLOCKSIZE; k++)
