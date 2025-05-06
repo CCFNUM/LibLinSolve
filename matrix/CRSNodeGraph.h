@@ -400,7 +400,8 @@ protected:
     unsigned long long global_number_indices_;
     std::vector<PackInfo> pack_infos_;
 
-    virtual void buildGraph_() = 0;
+    // virtual void buildGraph_() = 0;
+    virtual void buildGraph_();
     virtual void computePackInfos_();
     virtual void computeDiagonalIndices_();
 

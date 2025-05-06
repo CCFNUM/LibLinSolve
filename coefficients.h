@@ -59,17 +59,17 @@ public:
 
     void setGraph(const CRSNodeGraph* graph)
     {
-        graph_ = graph;
+        graph_ = *graph;
         resizeGraph();
     }
 
     void resizeGraph()
     {
-        assert(graph_ && graph_->isBuilt()); // MPI data is correct if graph is
-                                             // built
+        assert(graph_ && graph_.isBuilt()); // MPI data is correct if graph is
+                                            // built
 
-        const Index n_local_coeff = graph_->nOwnedNodes();
-        const Index n_local_ghosts = graph_->nGhostNodes();
+        const Index n_local_coeff = graph_.nOwnedNodes();
+        const Index n_local_ghosts = graph_.nGhostNodes();
 
         this->values_.resize(this->nnz()); // matrix coefficients
         x_.resize(BLOCKSIZE * (n_local_coeff + n_local_ghosts));
@@ -140,17 +140,17 @@ public:
 
     Index nCoefficients() const
     {
-        return graph_->nOwnedNodes();
+        return graph_.nOwnedNodes();
     }
 
     Index nGhostCoefficients() const
     {
-        return graph_->nGhostNodes();
+        return graph_.nGhostNodes();
     }
 
     Index nGlobalCoefficients() const
     {
-        return graph_->nGlobalRows();
+        return graph_.nGlobalRows();
     }
 
     LUData& getLUData()
@@ -184,7 +184,7 @@ public:
         data.sum_byte *= sizeof(TReal);
 
         // integer data
-        this->graph_->getMemoryFootprint(connectivity);
+        this->graph_.getMemoryFootprint(connectivity);
     }
 
     void serialize(const std::string basename = "coeffs") const
@@ -196,7 +196,7 @@ public:
         std::ofstream fout(fname.str(), std::ios::binary);
 
         // graph
-        this->graph_->serialize(fout);
+        this->graph_.serialize(fout);
 
         // coefficients (always write 64-bit)
         uint64_t v64;

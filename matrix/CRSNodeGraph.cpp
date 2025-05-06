@@ -384,6 +384,10 @@ typename CRSNodeGraph::Index CRSNodeGraph::filterGhostsForOwnerRank_(
     return 0;
 }
 
+void CRSNodeGraph::buildGraph_() // TODO: empty definition
+{
+}
+
 void CRSNodeGraph::computePackInfos_()
 {
     if (1 == size_ || comm_ == MPI_COMM_NULL)
