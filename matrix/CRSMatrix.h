@@ -102,12 +102,12 @@ public:
         return values_.data();
     }
 #ifdef USE_KOKKOS
-    inline Vector::SubviewType valuesRef() const
+    KOKKOS_INLINE_FUNCTION auto valuesRef() const
     {
         return values_.subview_all();
     }
 
-    inline Vector::SubviewType rowVals(Index iRow) const
+    KOKKOS_INLINE_FUNCTION auto rowVals(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -176,7 +176,7 @@ public:
     };
 #ifdef USE_KOKKOS // TODO: this is a hack. i think diag should be accessed as
                   // maybe a subview?
-    inline DataType* diag(Index iRow) const
+    KOKKOS_INLINE_FUNCTION DataType* diag(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());

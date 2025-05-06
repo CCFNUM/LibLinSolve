@@ -54,6 +54,7 @@ public:
         return Kokkos::subview(hostVals, Kokkos::make_pair(size_t(0), size()));
     }
 
+    KOKKOS_INLINE_FUNCTION
     auto view_device()
     {
         return Kokkos::subview(deviceVals,
@@ -65,31 +66,37 @@ public:
         return Kokkos::subview(hostVals, Kokkos::make_pair(begin, end));
     }
 
+    KOKKOS_INLINE_FUNCTION
     auto subview_device(size_t begin, size_t end) const
     {
         return Kokkos::subview(deviceVals, Kokkos::make_pair(begin, end));
     }
 
-    auto data_host() const
-    {
-        return hostVals.data();
-    }
+    // auto data_host() const
+    // {
+    //     return hostVals.data();
+    // }
 
+    KOKKOS_INLINE_FUNCTION
     auto data() const
     {
-        return hostVals.data();
+        KOKKOS_IF_ON_DEVICE(return deviceVals.data();)
+        KOKKOS_IF_ON_HOST(return hostVals.data();)
     }
 
-    auto data_device() const
-    {
-        return deviceVals.data();
-    }
+    // KOKKOS_INLINE_FUNCTION
+    // auto data_device() const
+    // {
+    //     return deviceVals.data();
+    // }
 
+    KOKKOS_FUNCTION
     Datatype& back()
     {
         return this->operator[](this->size() - 1);
     }
 
+    KOKKOS_FUNCTION
     const Datatype& back() const
     {
         return this->operator[](this->size() - 1);
@@ -100,6 +107,7 @@ public:
         Kokkos::deep_copy(hostVals, val);
     }
 
+    KOKKOS_INLINE_FUNCTION
     void fill_device(const Datatype& val)
     {
         Kokkos::deep_copy(deviceVals, val);
@@ -140,15 +148,17 @@ public:
         mSize = 0;
     }
 
+    KOKKOS_INLINE_FUNCTION
     Datatype& operator[](size_t i) const
     {
-        return hostVals(i);
+        KOKKOS_IF_ON_DEVICE(return deviceVals(i);)
+        KOKKOS_IF_ON_HOST(return hostVals(i);)
     }
 
-    KOKKOS_FUNCTION Datatype& device_get(size_t i) const
-    {
-        return deviceVals(i);
-    }
+    // KOKKOS_FUNCTION Datatype& device_get(size_t i) const
+    // {
+    //     return deviceVals(i);
+    // }
 
 protected:
 #ifdef KOKKOS_ENABLE_CUDA
@@ -219,6 +229,7 @@ public:
         typename Kokkos::Subview<Kokkos::View<const Datatype*, DeviceSpace>,
                                  Kokkos::pair<unsigned, unsigned>>;
 
+    KOKKOS_FUNCTION
     auto subview(size_t begin, size_t end) const
     {
         KOKKOS_IF_ON_DEVICE(
@@ -228,6 +239,7 @@ public:
             return Kokkos::subview(hostVals, Kokkos::make_pair(begin, end));)
     }
 
+    KOKKOS_FUNCTION
     auto subview_const(size_t begin, size_t end) const
     {
         KOKKOS_IF_ON_DEVICE(return ConstSubviewTypeDevice(Kokkos::subview(
@@ -236,6 +248,7 @@ public:
             hostVals, Kokkos::make_pair(begin, end)));)
     }
 
+    KOKKOS_FUNCTION
     auto subview_all() const
     {
         KOKKOS_IF_ON_DEVICE(return Kokkos::subview(deviceVals, Kokkos::ALL);)
@@ -243,6 +256,7 @@ public:
         KOKKOS_IF_ON_HOST(return Kokkos::subview(hostVals, Kokkos::ALL);)
     }
 
+    KOKKOS_FUNCTION
     auto subview_all_const() const
     {
         KOKKOS_IF_ON_DEVICE(return ConstSubviewTypeDevice(Kokkos::subview(

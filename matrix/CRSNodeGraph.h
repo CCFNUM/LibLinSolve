@@ -6,6 +6,12 @@
 #ifndef CRSNODEGRAPH_H_UI1807EK
 #define CRSNODEGRAPH_H_UI1807EK
 
+// TODO: maybe relocate this?
+#ifndef USE_KOKKOS
+#define KOKKOS_FUNCTION
+#define KOKKOS_INLINE_FUNCTION inline
+#endif
+
 #ifdef USE_KOKKOS
 #include <Kokkos_Core.hpp>
 #include <MyNgpVector.h>
@@ -125,11 +131,13 @@ public:
     {
     }
 
+    KOKKOS_INLINE_FUNCTION
     operator int()
     {
         return value_;
     }
 
+    KOKKOS_INLINE_FUNCTION
     operator int() const
     {
         return value_;
@@ -181,73 +189,73 @@ public:
         return size_;
     }
 
-    inline Index nOwnedNodes() const
+    KOKKOS_INLINE_FUNCTION Index nOwnedNodes() const
     {
         assert(is_built_);
         assert(n_owned_nodes_ > 0);
         return n_owned_nodes_;
     }
 
-    inline Index nGhostNodes() const
+    KOKKOS_INLINE_FUNCTION Index nGhostNodes() const
     {
         assert(is_built_);
         return n_ghost_nodes_;
     }
 
-    inline Index nAllNodes() const
+    KOKKOS_INLINE_FUNCTION Index nAllNodes() const
     {
         assert(is_built_);
         return nOwnedNodes() + nGhostNodes();
     }
 
-    inline Index nGlobalNodes() const
+    KOKKOS_INLINE_FUNCTION Index nGlobalNodes() const
     {
         assert(is_built_);
         return global_number_nodes_;
     }
 
-    inline Index globalRowOffset() const
+    KOKKOS_INLINE_FUNCTION Index globalRowOffset() const
     {
         assert(is_built_);
         return global_row_offset_;
     }
 
-    inline Index nRows() const
+    KOKKOS_INLINE_FUNCTION Index nRows() const
     {
         return nOwnedNodes();
     }
 
-    inline Index nGlobalRows() const
+    KOKKOS_INLINE_FUNCTION Index nGlobalRows() const
     {
         return nGlobalNodes();
     }
 
-    inline Index nIndices() const
+    KOKKOS_INLINE_FUNCTION Index nIndices() const
     {
         return row_ptr_.back();
     }
 
-    inline unsigned long long nGlobalIndices() const
+    KOKKOS_INLINE_FUNCTION unsigned long long nGlobalIndices() const
     {
         assert(is_built_);
         return global_number_indices_;
     }
 
-    inline const IndexVector& offsets() const
+    KOKKOS_INLINE_FUNCTION const IndexVector& offsets() const
     {
         assert(is_built_);
         assert(row_ptr_.size() > 1);
         return row_ptr_;
     }
 
-    inline const IndexVector& indices() const
+    KOKKOS_INLINE_FUNCTION const IndexVector& indices() const
     {
         assert(is_built_);
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
         return primary_indices_;
     }
 
-    inline const IndexVector& diagonalIndicesOffset() const
+    KOKKOS_INLINE_FUNCTION const IndexVector& diagonalIndicesOffset() const
     {
         assert(is_built_);
         assert(static_cast<Index>(diagonal_row_offset_.size()) ==
@@ -255,33 +263,35 @@ public:
         return diagonal_row_offset_;
     }
 
-    inline const std::vector<PackInfo>& getPackInfos() const
+    KOKKOS_INLINE_FUNCTION const std::vector<PackInfo>& getPackInfos() const
     {
         assert(is_built_);
         return pack_infos_;
     }
 
-    inline GraphLayout getLayout() const
+    KOKKOS_INLINE_FUNCTION GraphLayout getLayout() const
     {
         return layout_;
     }
 
-    inline bool isLocalColumnOrder() const
+    KOKKOS_INLINE_FUNCTION bool isLocalColumnOrder() const
     {
-        return (layout_ & GraphLayout::ColumnIndexOrder__Local);
+        return (layout_ &
+                GraphLayout::ColumnIndexOrder__Local); // TODO: what's the
+                                                       // "host" function here?
     }
 
-    inline bool isGlobalColumnOrder() const
+    KOKKOS_INLINE_FUNCTION bool isGlobalColumnOrder() const
     {
         return (layout_ & GraphLayout::ColumnIndexOrder__Global);
     }
 
-    inline bool isBuilt() const
+    KOKKOS_INLINE_FUNCTION bool isBuilt() const
     {
         return is_built_;
     }
 
-    inline Index nnzOwned(const Index i_row) const
+    KOKKOS_INLINE_FUNCTION Index nnzOwned(const Index i_row) const
     {
         assert(is_built_);
         assert(0 <= i_row);
@@ -289,7 +299,7 @@ public:
         return row_nnz_owned_[i_row];
     }
 #ifdef USE_KOKKOS
-    inline auto nnzOwned() const
+    KOKKOS_INLINE_FUNCTION auto nnzOwned() const
     {
         assert(is_built_);
         return row_nnz_owned_.subview_all_const();
@@ -301,7 +311,7 @@ public:
         return std::span<const Index>(row_nnz_owned_);
     }
 #endif
-    inline Index nnzGhost(const Index i_row) const
+    KOKKOS_INLINE_FUNCTION Index nnzGhost(const Index i_row) const
     {
         assert(is_built_);
         assert(0 <= i_row);
@@ -310,7 +320,7 @@ public:
     }
 
 #ifdef USE_KOKKOS
-    inline auto nnzGhost() const
+    KOKKOS_INLINE_FUNCTION auto nnzGhost() const
     {
         assert(is_built_);
         return row_nnz_ghost_.subview_all_const();
@@ -322,7 +332,7 @@ public:
         return std::span<const Index>(row_nnz_ghost_);
     }
 #endif
-    inline Index localToGlobalIndex(const Index j_local) const
+    KOKKOS_INLINE_FUNCTION Index localToGlobalIndex(const Index j_local) const
     {
         // only defined if `j_local` is owned
         // clang-format off
@@ -334,7 +344,7 @@ public:
         return j_local + this->global_row_offset_;
     }
 
-    inline Index globalToLocalIndex(const Index j_global) const
+    KOKKOS_INLINE_FUNCTION Index globalToLocalIndex(const Index j_global) const
     {
         // only defined if `j_global` is owned
         // clang-format off

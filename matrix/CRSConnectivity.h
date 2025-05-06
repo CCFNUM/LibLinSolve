@@ -33,6 +33,7 @@ public:
         graph_ = nullptr;
     }
 
+    KOKKOS_INLINE_FUNCTION
     const CRSNodeGraph* getGraph() const
     {
         return graph_;
@@ -53,62 +54,62 @@ public:
         return graph_->commSize();
     }
 
-    inline Index globalRowOffset() const
+    KOKKOS_INLINE_FUNCTION Index globalRowOffset() const
     {
         return graph_->globalRowOffset();
     };
 
-    inline Index nRows() const
+    KOKKOS_INLINE_FUNCTION Index nRows() const
     {
         return graph_->nRows();
     };
 
-    inline Index nGlobalRows() const
+    KOKKOS_INLINE_FUNCTION Index nGlobalRows() const
     {
         return graph_->nGlobalRows();
     };
 
-    inline Index nnzBlocks() const
+    KOKKOS_INLINE_FUNCTION Index nnzBlocks() const
     {
         return graph_->nIndices();
     }
 
-    inline unsigned long long nnzGlobalBlocks() const
+    KOKKOS_INLINE_FUNCTION unsigned long long nnzGlobalBlocks() const
     {
         return graph_->nGlobalIndices();
     }
 
-    inline const Index* offsetsPtr() const
+    KOKKOS_INLINE_FUNCTION const Index* offsetsPtr() const
     {
         return graph_->offsets().data();
     }
 
-    inline const IndexVector& offsetsRef() const
+    KOKKOS_INLINE_FUNCTION const IndexVector& offsetsRef() const
     {
         return graph_->offsets();
     }
 
-    inline const Index* indicesPtr() const
+    KOKKOS_INLINE_FUNCTION const Index* indicesPtr() const
     {
         return graph_->indices().data();
     }
 
-    inline const IndexVector& indicesRef() const
+    KOKKOS_INLINE_FUNCTION const IndexVector& indicesRef() const
     {
         return graph_->indices();
     }
 
-    inline const Index* diagOffsetPtr() const
+    KOKKOS_INLINE_FUNCTION const Index* diagOffsetPtr() const
     {
         return graph_->diagonalIndicesOffset().data();
     }
 
-    inline const IndexVector& diagOffsetRef() const
+    KOKKOS_INLINE_FUNCTION const IndexVector& diagOffsetRef() const
     {
         return graph_->diagonalIndicesOffset();
     }
 #ifdef USE_KOKKOS
-    inline auto rowCols(Index iRow) const
+    KOKKOS_INLINE_FUNCTION auto rowCols(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -127,12 +128,12 @@ public:
     }
 #endif
 
-    inline Index localToGlobal(Index localID) const
+    KOKKOS_INLINE_FUNCTION Index localToGlobal(Index localID) const
     {
         return graph_->localToGlobalIndex(localID);
     };
 
-    inline Index globalToLocal(Index globalID) const
+    KOKKOS_INLINE_FUNCTION Index globalToLocal(Index globalID) const
     {
         return graph_->globalToLocalIndex(globalID);
     };
