@@ -19,6 +19,7 @@ std::vector<char> CRSMatrix<N>::gatherToGlobal_(const T* values,
                                                 const size_t n_values,
                                                 const bool exscan) const
 {
+    // TODO: valgrind reports losses here somewhere?
     std::vector<T> val(n_values);
     std::copy(values, values + n_values, val.begin());
 
@@ -251,7 +252,8 @@ void CRSMatrix<N>::writeMatrix_(const char* name) const
 }
 
 template <size_t N>
-typename CRSMatrix<N>::DataType CRSMatrix<N>::operator()(Index i, Index j) const
+KOKKOS_INLINE_FUNCTION typename CRSMatrix<N>::DataType
+CRSMatrix<N>::operator()(Index i, Index j) const
 {
     Index I = i / N; // block row index
     Index J = j / N; // block col index

@@ -162,6 +162,7 @@ public:
     struct PackInfo
     {
         int remote_rank;
+        // TODO: possibly change to indexvector later
         IndexVector send_idx;
         IndexVector recv_idx;
     };
@@ -361,12 +362,68 @@ public:
 
     auto rowLocalIndices(const Index i_row) const;
     auto rowGlobalIndices(const Index i_row) const;
+
+    void modifyHost()
+    {
+        row_ptr_.modifyHost();
+        primary_indices_.modifyHost();
+        secondary_indices_.modifyHost();
+        row_nnz_owned_.modifyHost();
+        row_nnz_ghost_.modifyHost();
+        diagonal_row_offset_.modifyHost();
+    }
+
+    void modifyDevice()
+    {
+        row_ptr_.modifyDevice();
+        primary_indices_.modifyDevice();
+        secondary_indices_.modifyDevice();
+        row_nnz_owned_.modifyDevice();
+        row_nnz_ghost_.modifyDevice();
+        diagonal_row_offset_.modifyDevice();
+    }
+
+    void syncToHost()
+    {
+        row_ptr_.syncToHost();
+        primary_indices_.syncToHost();
+        secondary_indices_.syncToHost();
+        row_nnz_owned_.syncToHost();
+        row_nnz_ghost_.syncToHost();
+        diagonal_row_offset_.syncToHost();
+    }
+
+    void syncToDevice()
+    {
+        row_ptr_.syncToDevice();
+        primary_indices_.syncToDevice();
+        secondary_indices_.syncToDevice();
+        row_nnz_owned_.syncToDevice();
+        row_nnz_ghost_.syncToDevice();
+        diagonal_row_offset_.syncToDevice();
+    }
 #else
     std::span<const Index> localIndices() const;
     std::span<const Index> globalIndices() const;
 
     std::span<const Index> rowLocalIndices(const Index i_row) const;
     std::span<const Index> rowGlobalIndices(const Index i_row) const;
+
+    void modifyHost()
+    {
+    }
+
+    void modifyDevice()
+    {
+    }
+
+    void syncToHost()
+    {
+    }
+
+    void syncToDevice()
+    {
+    }
 #endif
     void getMemoryFootprint(MemoryFootprint& data) const;
     void serialize(std::ofstream& out) const;

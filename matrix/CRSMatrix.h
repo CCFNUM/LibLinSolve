@@ -82,29 +82,32 @@ public:
     }
 
     // Access / on-the-fly operations
-    inline Index nnz() const
+    KOKKOS_INLINE_FUNCTION Index nnz() const
     {
         return BLOCKSIZE * BLOCKSIZE * this->nnzBlocks();
     }
 
-    inline unsigned long long nnzGlobal() const
+    KOKKOS_INLINE_FUNCTION unsigned long long nnzGlobal() const
     {
         return BLOCKSIZE * BLOCKSIZE * this->nnzGlobalBlocks();
     }
 
-    inline DataType* valuesPtr()
+    KOKKOS_INLINE_FUNCTION DataType* valuesPtr()
     {
         return values_.data();
     }
 
-    inline const DataType* valuesPtr() const
+    KOKKOS_INLINE_FUNCTION const DataType* valuesPtr() const
     {
         return values_.data();
     }
 #ifdef USE_KOKKOS
-    KOKKOS_INLINE_FUNCTION auto valuesRef() const
+    // TODO: what should this return? a View directly or the Vector class?
+    // KOKKOS_INLINE_FUNCTION auto valuesRef() const
+    KOKKOS_INLINE_FUNCTION const Vector& valuesRef() const
     {
-        return values_.subview_all();
+        // return values_.subview_all();
+        return values_;
     }
 
     KOKKOS_INLINE_FUNCTION auto rowVals(Index iRow) const
@@ -147,6 +150,49 @@ public:
     }
 #endif
 
+#ifdef USE_KOKKOS // TODO: this is a hack. i think diag should be accessed as
+                  // maybe a subview?
+
+    KOKKOS_INLINE_FUNCTION const DataType& dofDiag(Index iRow,
+                                                   Index dof = 0) const
+    {
+        assert(0 <= iRow);
+        assert(iRow < this->nRows());
+        const auto& diag_offsets = this->diagOffsetRef();
+        return this->rowVals(iRow)[BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow] +
+                                   (BLOCKSIZE + 1) * dof];
+    };
+
+    KOKKOS_INLINE_FUNCTION DataType* diag(Index iRow) const
+    {
+        assert(0 <= iRow);
+        assert(iRow < this->nRows());
+        const auto& offsets = this->offsetsRef();
+        const auto& diag_offsets = this->diagOffsetRef();
+        return &values_[BLOCKSIZE * BLOCKSIZE * offsets[iRow] +
+                        BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
+    };
+
+    void modifyHost()
+    {
+        values_.modifyHost();
+    }
+
+    void modifyDevice()
+    {
+        values_.modifyDevice();
+    }
+
+    void syncToHost()
+    {
+        values_.syncToHost();
+    }
+
+    void syncToDevice()
+    {
+        values_.syncToDevice();
+    }
+#else
     inline DataType& dofDiag(Index iRow, Index dof = 0)
     {
         assert(0 <= iRow);
@@ -174,18 +220,7 @@ public:
         return &values_[BLOCKSIZE * BLOCKSIZE * offsets[iRow] +
                         BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
     };
-#ifdef USE_KOKKOS // TODO: this is a hack. i think diag should be accessed as
-                  // maybe a subview?
-    KOKKOS_INLINE_FUNCTION DataType* diag(Index iRow) const
-    {
-        assert(0 <= iRow);
-        assert(iRow < this->nRows());
-        const auto& offsets = this->offsetsRef();
-        const auto& diag_offsets = this->diagOffsetRef();
-        return &values_[BLOCKSIZE * BLOCKSIZE * offsets[iRow] +
-                        BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
-    };
-#else
+
     inline const DataType* diag(Index iRow) const
     {
         assert(0 <= iRow);
@@ -195,8 +230,26 @@ public:
         return &values_[BLOCKSIZE * BLOCKSIZE * offsets[iRow] +
                         BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
     };
+
+    void modifyHost()
+    {
+    }
+
+    void modifyDevice()
+    {
+    }
+
+    void syncToHost()
+    {
+    }
+
+    void syncToDevice()
+    {
+    }
 #endif
+
     // layout conversions
+    KOKKOS_INLINE_FUNCTION
     MemoryLayout getMemoryLayout() const
     {
         return memory_layout_;
@@ -204,6 +257,7 @@ public:
 
     // Internal use only for debug purposes (expensive search !!): i and j are
     // absolute indices, not block indices
+    KOKKOS_INLINE_FUNCTION
     DataType operator()(Index i, Index j) const;
 
     // IO

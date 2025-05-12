@@ -1,7 +1,10 @@
-#ifndef NGP_VECTOR_H
-#define NGP_VECTOR_H
+#ifndef MY_NGP_VECTOR_H
+#define MY_NGP_VECTOR_H
 
 #include "Kokkos_Core.hpp"
+#include <Kokkos_DualView.hpp>
+
+// #include <iostream>
 
 namespace linearSolver
 {
@@ -9,23 +12,18 @@ namespace linearSolver
 template <typename Datatype>
 class MyNgpVector
 {
-    using HostSpace = Kokkos::DefaultHostExecutionSpace;
 
 public:
     MyNgpVector(const std::string& n) : MyNgpVector(n, 0)
     {
     }
 
-    MyNgpVector() : MyNgpVector(get_default_name())
+    //TODO: not calling the other constructor to allow fully empty construction
+    MyNgpVector() // : MyNgpVector(get_default_name())
     {
     }
 
-    MyNgpVector(const std::string& n, size_t s)
-        : mSize(s),
-          deviceVals(Kokkos::view_alloc(Kokkos::WithoutInitializing, n), mSize),
-          hostVals(Kokkos::create_mirror_view(Kokkos::WithoutInitializing,
-                                              HostSpace(),
-                                              deviceVals))
+    MyNgpVector(const std::string& n, size_t s) : mSize(s), values(n, s)
     {
     }
 
@@ -36,7 +34,9 @@ public:
     MyNgpVector(const std::string& n, size_t s, Datatype init)
         : MyNgpVector(n, s)
     {
-        Kokkos::deep_copy(hostVals, init);
+        Kokkos::deep_copy(values.view_host(), init);
+        values.modify_host();
+        values.sync_device();
     }
 
     MyNgpVector(size_t s, Datatype init)
@@ -44,88 +44,33 @@ public:
     {
     }
 
+    /***  HOST ONLY FUNCTIONS ***/
+
     std::string name() const
     {
-        return hostVals.label();
+        // return values.view_host().label();
+        return values.label();
     }
 
-    auto view_host()
+    void fill_host(const Datatype& val) const
     {
-        return Kokkos::subview(hostVals, Kokkos::make_pair(size_t(0), size()));
+        Kokkos::deep_copy(values.view_host(), val);
     }
 
-    KOKKOS_INLINE_FUNCTION
-    auto view_device()
+    void fill_device(const Datatype& val) const
     {
-        return Kokkos::subview(deviceVals,
-                               Kokkos::make_pair(size_t(0), size()));
+        Kokkos::deep_copy(values.view_device(), val);
     }
 
-    auto subview_host(size_t begin, size_t end) const
+    void fill(const Datatype& val) const
     {
-        return Kokkos::subview(hostVals, Kokkos::make_pair(begin, end));
-    }
-
-    KOKKOS_INLINE_FUNCTION
-    auto subview_device(size_t begin, size_t end) const
-    {
-        return Kokkos::subview(deviceVals, Kokkos::make_pair(begin, end));
-    }
-
-    // auto data_host() const
-    // {
-    //     return hostVals.data();
-    // }
-
-    KOKKOS_INLINE_FUNCTION
-    auto data() const
-    {
-        KOKKOS_IF_ON_DEVICE(return deviceVals.data();)
-        KOKKOS_IF_ON_HOST(return hostVals.data();)
-    }
-
-    // KOKKOS_INLINE_FUNCTION
-    // auto data_device() const
-    // {
-    //     return deviceVals.data();
-    // }
-
-    KOKKOS_FUNCTION
-    Datatype& back()
-    {
-        return this->operator[](this->size() - 1);
-    }
-
-    KOKKOS_FUNCTION
-    const Datatype& back() const
-    {
-        return this->operator[](this->size() - 1);
-    }
-
-    void fill_host(const Datatype& val)
-    {
-        Kokkos::deep_copy(hostVals, val);
-    }
-
-    KOKKOS_INLINE_FUNCTION
-    void fill_device(const Datatype& val)
-    {
-        Kokkos::deep_copy(deviceVals, val);
-    }
-
-    KOKKOS_FUNCTION size_t size() const
-    {
-        return mSize;
-    }
-
-    KOKKOS_FUNCTION bool empty() const
-    {
-        return mSize == 0;
+        fill_host(val);
+        fill_device(val);
     }
 
     size_t capacity() const
     {
-        return hostVals.size();
+        return values.view_host().size();
     }
 
     void resize(size_t s)
@@ -139,83 +84,127 @@ public:
             grow_to_size(s);
         if (s > mSize)
             for (size_t i = mSize; i < s; i++)
-                hostVals(i) = init;
+                values.view_host()(i) = init;
         mSize = s;
+        values.modify_host();
+        values.sync_device();
     }
 
     void clear()
     {
         mSize = 0;
+        values.resize(mSize);
+        values.clear_sync_state();
+    }
+
+    void push_back(const Datatype& val)
+    {
+        if (mSize >= capacity())
+            grow_to_size(mSize + get_push_back_increase_size());
+        values.view_host()[mSize] = val;
+        mSize++;
+    }
+
+    void manual_copy_host_to_device()
+    {
+        Kokkos::deep_copy(values.view_device(), values.view_host());
+    }
+
+    void manual_copy_device_to_host()
+    {
+        Kokkos::deep_copy(values.view_host(), values.view_device());
+    }
+
+    void modifyHost()
+    {
+        values.modify_host();
+    }
+
+    void modifyDevice()
+    {
+        values.modify_device();
+    }
+
+    void syncToHost()
+    {
+        values.sync_host();
+    }
+
+    void syncToDevice()
+    {
+        values.sync_device();
+    }
+
+    // debug
+    bool isAllocated()
+    {
+        return values.is_allocated();
+    }
+
+    auto get_host_view()
+    {
+        return values.view_host();
+    }
+
+    /***  HOST/DEVICE FUNCTIONS ***/
+    // TODO: don't like the size member. should be obtained from view directly
+    KOKKOS_INLINE_FUNCTION size_t size() const
+    {
+        return mSize;
+    }
+
+    KOKKOS_INLINE_FUNCTION bool empty() const
+    {
+        return mSize == 0;
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    auto data() const
+    {
+        KOKKOS_IF_ON_DEVICE(return values.view_device().data();)
+        KOKKOS_IF_ON_HOST(return values.view_host().data();)
+    }
+
+    // TODO: might need to be const too
+    KOKKOS_INLINE_FUNCTION
+    Datatype& back()
+    {
+        return this->operator[](this->size() - 1);
+    }
+
+    KOKKOS_INLINE_FUNCTION
+    const Datatype& back() const
+    {
+        return this->operator[](this->size() - 1);
     }
 
     KOKKOS_INLINE_FUNCTION
     Datatype& operator[](size_t i) const
     {
-        KOKKOS_IF_ON_DEVICE(return deviceVals(i);)
-        KOKKOS_IF_ON_HOST(return hostVals(i);)
+        KOKKOS_IF_ON_DEVICE(return values.view_device()(i);)
+        KOKKOS_IF_ON_HOST(return values.view_host()(i);)
     }
 
-    // KOKKOS_FUNCTION Datatype& device_get(size_t i) const
-    // {
-    //     return deviceVals(i);
-    // }
-
-protected:
-#ifdef KOKKOS_ENABLE_CUDA
-    using DeviceSpace = Kokkos::CudaSpace;
-#elif defined(KOKKOS_ENABLE_HIP)
-    using DeviceSpace = Kokkos::HIPSpace;
-#else
-    using DeviceSpace = Kokkos::HostSpace;
-#endif
-public:
-    template <class Device>
-    KOKKOS_FUNCTION Datatype&
-    get(typename std::enable_if<
-        std::is_same<typename Device::execution_space,
-                     DeviceSpace::execution_space>::value,
-        size_t>::type i) const
+    // debug
+    KOKKOS_INLINE_FUNCTION
+    auto get_device_view() const
     {
-        return deviceVals(i);
-    }
-#ifdef STK_ENABLE_GPU
-    template <class Device>
-    KOKKOS_FUNCTION Datatype&
-    get(typename std::enable_if<
-        !std::is_same<typename Device::execution_space,
-                      DeviceSpace::execution_space>::value,
-        size_t>::type i) const
-    {
-        return hostVals(i);
-    }
-#endif
-
-    void push_back(Datatype val)
-    {
-        if (mSize >= capacity())
-            grow_to_size(mSize + get_push_back_increase_size());
-        hostVals[mSize] = val;
-        mSize++;
-    }
-
-    void copy_host_to_device()
-    {
-        Kokkos::deep_copy(deviceVals, hostVals);
-    }
-
-    void copy_device_to_host()
-    {
-        Kokkos::deep_copy(hostVals, deviceVals);
+        return values.view_device();
     }
 
 protected:
-    using DeviceType = Kokkos::View<Datatype*, DeviceSpace>;
-    using HostType = typename DeviceType::HostMirror;
-
-    virtual DeviceType get_new_vals_of_size(size_t s)
-    {
-        return DeviceType(deviceVals.label(), s);
-    }
+    // #ifdef KOKKOS_ENABLE_CUDA
+    //     using DeviceSpace = Kokkos::CudaSpace;
+    // #elif defined(KOKKOS_ENABLE_HIP)
+    //     using DeviceSpace = Kokkos::HIPSpace;
+    // #else
+    //     using DeviceSpace = Kokkos::HostSpace;
+    // #endif
+    using DualType = Kokkos::DualView<Datatype*>;
+    using DeviceType = typename DualType::t_dev;
+    using HostType = typename DualType::t_host;
+    using DeviceSpace = DeviceType::memory_space;
+    using HostSpace = HostType::memory_space;
 
 public:
     using SubviewTypeHost =
@@ -233,42 +222,49 @@ public:
     auto subview(size_t begin, size_t end) const
     {
         KOKKOS_IF_ON_DEVICE(
-            return Kokkos::subview(deviceVals, Kokkos::make_pair(begin, end));)
+            return Kokkos::subview(values.view_device(),
+                                   Kokkos::make_pair(begin, end));)
 
         KOKKOS_IF_ON_HOST(
-            return Kokkos::subview(hostVals, Kokkos::make_pair(begin, end));)
+            return Kokkos::subview(values.view_host(),
+                                   Kokkos::make_pair(begin, end));)
     }
 
     KOKKOS_FUNCTION
     auto subview_const(size_t begin, size_t end) const
     {
         KOKKOS_IF_ON_DEVICE(return ConstSubviewTypeDevice(Kokkos::subview(
-            deviceVals, Kokkos::make_pair(begin, end)));)
+            values.view_device(), Kokkos::make_pair(begin, end)));)
         KOKKOS_IF_ON_HOST(return ConstSubviewTypeHost(Kokkos::subview(
-            hostVals, Kokkos::make_pair(begin, end)));)
+            values.view_host(), Kokkos::make_pair(begin, end)));)
     }
 
     KOKKOS_FUNCTION
     auto subview_all() const
     {
-        KOKKOS_IF_ON_DEVICE(return Kokkos::subview(deviceVals, Kokkos::ALL);)
+        KOKKOS_IF_ON_DEVICE(
+            return Kokkos::subview(values.view_device(), Kokkos::ALL);)
 
-        KOKKOS_IF_ON_HOST(return Kokkos::subview(hostVals, Kokkos::ALL);)
+        KOKKOS_IF_ON_HOST(
+            return Kokkos::subview(values.view_host(), Kokkos::ALL);)
+        // auto tmp = Kokkos::subview(values, Kokkos::make_pair(size_t(0),
+        // mSize)); KOKKOS_IF_ON_DEVICE(return tmp.view_device();)
+        // KOKKOS_IF_ON_HOST(return tmp.view_host();)
     }
 
     KOKKOS_FUNCTION
     auto subview_all_const() const
     {
         KOKKOS_IF_ON_DEVICE(return ConstSubviewTypeDevice(Kokkos::subview(
-            deviceVals, Kokkos::ALL));)
-        KOKKOS_IF_ON_HOST(return ConstSubviewTypeHost(
-                                     Kokkos::subview(hostVals, Kokkos::ALL));)
+            values.view_device(), Kokkos::ALL));)
+        KOKKOS_IF_ON_HOST(return ConstSubviewTypeHost(Kokkos::subview(
+            values.view_host(), Kokkos::ALL));)
+        // return subview_all();
     }
 
 private:
-    size_t mSize;
-    DeviceType deviceVals;
-    HostType hostVals;
+    size_t mSize = 0;
+    DualType values;
 
     static const char* get_default_name()
     {
@@ -284,16 +280,18 @@ private:
 
     void grow_to_size(size_t s)
     {
-        deviceVals = get_new_vals_of_size(s);
-        HostType tmp = Kokkos::create_mirror_view(deviceVals);
-        copy_into_bigger(tmp, hostVals);
-        hostVals = tmp;
-    }
-
-    void copy_into_bigger(HostType& dst, HostType& src)
-    {
-        for (size_t i = 0; i < src.size(); i++)
-            dst[i] = src[i];
+        // this resizes and copies existing data into the new size.
+        // this happens in the space where the device was last modified.
+        // at the start, this modifies device!
+        values.resize(s);
+        if (values.need_sync_host())
+        {
+            values.sync_host();
+        }
+        else if (values.need_sync_device())
+        {
+            values.sync_device();
+        }
     }
 };
 

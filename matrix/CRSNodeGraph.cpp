@@ -15,7 +15,14 @@ namespace linearSolver
 {
 
 CRSNodeGraph::CRSNodeGraph(const MPI_Comm comm, const GraphLayout layout)
-    : comm_(comm), layout_(layout)
+    : comm_(comm),
+#ifdef USE_KOKKOS
+      row_ptr_("row_ptr_"), primary_indices_("primary_indices_"),
+      secondary_indices_("secondary_indices_"),
+      row_nnz_owned_("row_nnz_owned_"), row_nnz_ghost_("row_nnz_ghost_"),
+      diagonal_row_offset_("diagonal_row_offset_"),
+#endif
+      layout_(layout)
 {
     resetGraph_();
     setup_();

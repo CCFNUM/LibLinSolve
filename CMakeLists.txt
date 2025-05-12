@@ -94,7 +94,7 @@ set(libLinSolveIncludes
 )
 
 set(libLinSolve "LinSolve")
-add_library(${libLinSolve} SHARED
+add_library(${libLinSolve} STATIC
     "AMGFactory.cpp"
     "matrix/CRSNodeGraph.cpp"
     "utils/Profiler.cpp"

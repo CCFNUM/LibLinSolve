@@ -65,8 +65,12 @@ public:
 
     void resizeGraph()
     {
-        assert(graph_ && graph_.isBuilt()); // MPI data is correct if graph is
-                                            // built
+        // assert(graph_ && graph_.isBuilt()); // MPI data is correct if graph
+        // is
+        //                                     // built
+        assert(graph_.isBuilt()); // MPI data is correct if graph is
+                                  // built
+                                  // TODO: graph_ is no longer a pointer
 
         const Index n_local_coeff = graph_.nOwnedNodes();
         const Index n_local_ghosts = graph_.nGhostNodes();
@@ -99,22 +103,22 @@ public:
 #ifdef USE_KOKKOS
     void zeroLHS()
     {
-        this->values_.fill_host(0);
+        this->values_.fill(0);
     }
 
     void zeroRHS()
     {
-        b_.fill_host(0);
+        b_.fill(0);
     }
 
     void zeroSOL()
     {
-        x_.fill_host(0);
+        x_.fill(0);
     }
 
     void zeroRES()
     {
-        r_.fill_host(0);
+        r_.fill(0);
     }
 #else
     void zeroLHS()
