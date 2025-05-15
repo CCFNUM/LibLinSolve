@@ -30,7 +30,11 @@ else()
 endif()
 
 find_package(MPI REQUIRED)
+# TODO: [fab4100@posteo.net; 2025-05-15] how to ask CMake which MPI
+# implementation it has found?  Alternatively say explicitly which
+# implementation to use like in Meson build definitions.
 add_compile_options("-DOMPI_SKIP_MPICXX")
+add_compile_options("-DMPICH_SKIP_MPICXX")
 
 set(libLinSolveIncludes
     "${CMAKE_CURRENT_LIST_DIR}"
