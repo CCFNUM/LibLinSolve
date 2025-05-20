@@ -149,20 +149,11 @@ public:
         std::vector<Index> recv_idx;
     };
 
-    enum class CommState
-    {
-        DUPLICATE,
-        NO_DUPLICATE,
-    };
-
-public:
     CRSNodeGraph() = delete;
 
-    explicit CRSNodeGraph(const MPI_Comm comm,
-                          const GraphLayout layout,
-                          const CommState comm_state = CommState::DUPLICATE);
+    explicit CRSNodeGraph(const MPI_Comm comm, const GraphLayout layout);
 
-    virtual ~CRSNodeGraph();
+    virtual ~CRSNodeGraph() = default;
 
     void buildGraph();
 
@@ -422,7 +413,6 @@ protected:
     void resetGraph_();
 
 private:
-    const CommState comm_state_;
     const GraphLayout layout_;
 
     Index filterGhostsForOwnerRank_(

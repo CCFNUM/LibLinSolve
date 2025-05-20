@@ -14,33 +14,11 @@
 namespace linearSolver
 {
 
-CRSNodeGraph::CRSNodeGraph(const MPI_Comm comm,
-                           const GraphLayout layout,
-                           const CommState comm_state)
-    : comm_state_(comm_state), layout_(layout)
+CRSNodeGraph::CRSNodeGraph(const MPI_Comm comm, const GraphLayout layout)
+    : comm_(comm), layout_(layout)
 {
     resetGraph_();
-    if (comm_state_ == CommState::DUPLICATE)
-    {
-        assert(comm != MPI_COMM_NULL);
-        MPI_Comm_dup(comm, &comm_);
-    }
-    else
-    {
-        comm_ = comm;
-    }
-
     setup_();
-}
-
-CRSNodeGraph::~CRSNodeGraph()
-{
-    if (comm_state_ == CommState::DUPLICATE)
-    {
-        assert(comm_ != MPI_COMM_NULL);
-        MPI_Comm_free(&comm_);
-    }
-    comm_ = MPI_COMM_NULL;
 }
 
 void CRSNodeGraph::buildGraph()
