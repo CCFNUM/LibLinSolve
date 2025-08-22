@@ -112,6 +112,7 @@ pkg_mod = import('pkgconfig')
 
 if fs.is_dir('libamg')
   subdir('libamg')
+  has_amg = true
 endif
 
 if get_option('CONFIG')
@@ -123,6 +124,9 @@ if get_option('CONFIG')
     install_dir: 'include'
   )
 endif
+
+# applications
+subdir('apps/solver')
 
 install_headers(
   'AMG.h',
