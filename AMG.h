@@ -33,6 +33,9 @@ LIBAMG_EXPORT void* getGMRESSolverInstance(const size_t blocksize,
                                            const YAML::Node& node,
                                            const YAML::Node& solver_lookup,
                                            GraphLayout& layout);
+LIBAMG_EXPORT void* getDirectSolverInstance(const size_t blocksize,
+                                            const YAML::Node& node,
+                                            GraphLayout& layout);
 
 } /* namespace linearSolver */
 

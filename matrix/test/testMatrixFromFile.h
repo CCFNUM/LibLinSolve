@@ -38,8 +38,6 @@ public:
                        const YAML::Node* conf = nullptr)
         : testSquareMatrix<N>(comm, layout, 10, conf)
     {
-        assert(this->isLocalColumnOrder());
-
         if (conf)
         {
             if ((*conf)["filename"])

@@ -85,6 +85,14 @@ template <size_t BLOCKSIZE>
                 BLOCKSIZE, solver_conf, solver_lookup, layout));
 #endif /* HAS_AMG */
     }
+    else if (family_type == "directsolver")
+    {
+#ifdef HAS_AMG
+        solver =
+            static_cast<LinearSolver*>(::linearSolver::getDirectSolverInstance(
+                BLOCKSIZE, solver_conf, layout));
+#endif /* HAS_AMG */
+    }
 
     return solver;
 }
