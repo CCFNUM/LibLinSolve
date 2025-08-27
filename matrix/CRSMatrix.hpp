@@ -186,7 +186,7 @@ void CRSMatrix<N>::dumpRow(Index rowID, Index width, Index precision) const
 }
 
 template <size_t N>
-void CRSMatrix<N>::writeMatrix(const std::string basename) const
+void CRSMatrix<N>::writeMatrix_(const char* name) const
 {
     // convert layout from blocked to row based
     std::vector<Index> offsets_row(BLOCKSIZE * nRows() + 1);
@@ -220,6 +220,8 @@ void CRSMatrix<N>::writeMatrix(const std::string basename) const
     }
     assert(col_count == static_cast<Index>(this->nnz()));
     *dst_row = col_count;
+
+    const std::string basename(name);
 
 #if 1
     this->dumpBinary_(

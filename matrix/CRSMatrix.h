@@ -42,6 +42,8 @@ private:
                                       const bool exscan = false) const;
     void dumpBinary_(const std::string fname, const std::vector<char>& v) const;
 
+    void writeMatrix_(const char* basename) const;
+
     std::ostream& stream_(std::ostream& os,
                           Index max_rows = 0,
                           Index max_cols = 0,
@@ -183,7 +185,10 @@ public:
     // this is slow because it uses operator() function
     void dumpRow(Index lid, Index width = 8, Index precision = 14) const;
 
-    void writeMatrix(const std::string basename) const;
+    void writeMatrix(const std::string basename) const
+    {
+        this->writeMatrix_(basename.c_str());
+    }
 };
 } // namespace linearSolver
 
