@@ -36,17 +36,13 @@ public:
     testMatrixFromFile(const MPI_Comm comm,
                        const GraphLayout layout,
                        const YAML::Node* conf = nullptr)
-        : testSquareMatrix<N>(comm, layout, 10, conf)
+        : testSquareMatrix<N>(comm, layout, 10, conf), fname_("test_matrix.bin")
     {
         if (conf)
         {
             if ((*conf)["filename"])
             {
                 fname_ = (*conf)["filename"].template as<std::string>();
-            }
-            else
-            {
-                fname_ = "test_matrix.bin";
             }
         }
 
