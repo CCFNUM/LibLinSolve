@@ -189,6 +189,10 @@ public:
     {
         this->writeMatrix_(basename.c_str());
     }
+
+    Index bandwidth() const; // matrix maximum bandwidth
+
+    Index profile() const; // matrix profile/envelope
 };
 } // namespace linearSolver
 
