@@ -4,6 +4,7 @@
 // Description: CRS matrix implementation details
 // Copyright 2024 CCFNUM HSLU T&A. All Rights Reserved.
 
+#include <cmath>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -314,6 +315,34 @@ typename CRSMatrix<N>::Index CRSMatrix<N>::profile() const
         envelope += i - j_min;
     }
     return envelope;
+}
+
+template <size_t N>
+typename CRSMatrix<N>::DataType norm__frobenius(const CRSMatrix<N>* A)
+{
+    using TReal = CRSMatrix<N>::DataType;
+    TReal norm = 0;
+    for (const TReal a_ij : A->valuesRef())
+    {
+        norm += a_ij * a_ij;
+    }
+    assert(norm > 0);
+    return std::sqrt(norm);
+}
+
+template <size_t N>
+typename CRSMatrix<N>::DataType CRSMatrix<N>::norm(const MatrixNorm type) const
+{
+    DataType norm = 0;
+    if (MatrixNorm::Frobenius == type)
+    {
+        norm = norm__frobenius(this);
+    }
+    else
+    {
+        throw std::runtime_error("Requested matrix norm is not implemented");
+    }
+    return norm;
 }
 
 } // namespace linearSolver

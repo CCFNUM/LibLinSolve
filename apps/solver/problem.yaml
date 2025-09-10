@@ -2,15 +2,16 @@
 solver: gmres
 # solver: amgsolver
 matrix:
-    # type: diagonal
-    type: preconditioner
+    type: diagonal
+    # type: preconditioner
     # type: fromfile
     # filename: flow_system.bin
-    n: 1000
+    n: 250
     # random: true
     # off_diag_dominance: 1.001
-    blk_ii: 3
+    blk_ii: 1
     # blk_ii: 1
+    blk_ij: 0
     # off_diagonal: 5
 
 solver_lookup:

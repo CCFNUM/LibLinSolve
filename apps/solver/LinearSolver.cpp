@@ -139,7 +139,12 @@ int main(int argc, char* argv[])
     HYPRE_Initialize();
 #endif /* HAS_HYPRE */
 
-    if (2 != argc)
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    const bool isroot = (0 == rank);
+
+    if (2 != argc && isroot)
     {
         std::cerr << "Usage: " << argv[0] << " <yaml_config_file>\n";
         std::exit(1);
@@ -156,6 +161,11 @@ int main(int argc, char* argv[])
     assert(matrix);
     Context* ctx = solver->createContext("TestMatrix", matrix).get();
     matrix->assemble(ctx);
+    if (isroot)
+    {
+        std::cout << "Matrix norm: " << std::scientific
+                  << ctx->getAMatrix().norm() << '\n';
+    }
 
     solver->solve();
     solver->report();

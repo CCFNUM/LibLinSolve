@@ -190,9 +190,17 @@ public:
         this->writeMatrix_(basename.c_str());
     }
 
+    // matrix properties
     Index bandwidth() const; // matrix maximum bandwidth
 
     Index profile() const; // matrix profile/envelope
+
+    enum class MatrixNorm
+    {
+        Frobenius,
+    };
+
+    DataType norm(const MatrixNorm type = MatrixNorm::Frobenius) const;
 };
 } // namespace linearSolver
 
