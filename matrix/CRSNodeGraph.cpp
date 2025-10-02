@@ -691,39 +691,36 @@ void CRSNodeGraph::sortPrimaryIndices_()
     }
 #endif /* NDEBUG */
 
+    const Index* row = row_ptr_.data();
+    Index* primary_base = primary_indices_.data();
+    Index* secondary_base = nullptr;
+    if (has_secondary)
+    {
+        secondary_base = secondary_indices_.data();
+    }
+
     std::vector<Index> buffer;
     std::vector<Index> permute;
     for (Index i_row = 0; i_row < n_owned_nodes_; ++i_row)
     {
-#ifdef USE_KOKKOS
-        auto primary_idx =
-            primary_indices_.subview(row_ptr_[i_row], row_ptr_[i_row + 1]);
-#else
-        std::span<Index> primary_idx =
-            std::span<Index>(primary_indices_)
-                .subspan(row_ptr_[i_row],
-                         row_ptr_[i_row + 1] - row_ptr_[i_row]);
-#endif
-        permute.resize(primary_idx.size());
+        const Index col_start = row[i_row];
+        const Index col_end = row[i_row + 1];
+        const Index n_col = col_end - col_start;
+        Index* primary_idx = primary_base + col_start;
+        // std::cout << "  row: " << i_row << "(" << n_col << ")\n";
+
+        permute.resize(n_col);
         std::iota(permute.begin(), permute.end(), 0);
         std::sort(permute.begin(),
                   permute.end(),
                   [primary_idx](const size_t i, const size_t j)
                   { return primary_idx[i] < primary_idx[j]; });
-        CRSNodeGraph::permuteCopy_(primary_idx.data(), buffer, permute);
+        CRSNodeGraph::permuteCopy_(primary_idx, buffer, permute);
 
         if (has_secondary)
         {
-#ifdef USE_KOKKOS
-            auto secondary_idx = secondary_indices_.subview(
-                row_ptr_[i_row], row_ptr_[i_row + 1]);
-#else
-            std::span<Index> secondary_idx =
-                std::span<Index>(secondary_indices_)
-                    .subspan(row_ptr_[i_row],
-                             row_ptr_[i_row + 1] - row_ptr_[i_row]);
-#endif
-            CRSNodeGraph::permuteCopy_(secondary_idx.data(), buffer, permute);
+            Index* secondary_idx = secondary_base + col_start;
+            CRSNodeGraph::permuteCopy_(secondary_idx, buffer, permute);
         }
     }
 }
