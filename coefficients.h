@@ -250,6 +250,86 @@ public:
         }
     }
 
+    void diagonalScale()
+    {
+        using TReal = typename Matrix::DataType;
+
+        auto& A = getAMatrix();
+        auto& b = getBVector();
+
+        for (Index i = 0; i < A.nRows(); i++)
+        {
+            // 1) Get row structure (only reuse pointers)
+            const auto block_col_idx = A.rowCols(i);
+            auto flat_row_vals = A.rowVals(i);
+
+            const Index* block_col_idx_ptr = block_col_idx.data();
+            const Index n_col_blocks = static_cast<Index>(block_col_idx.size());
+            TReal* flat_row_vals_ptr = flat_row_vals.data();
+
+            // 2) Locate diagonal block A_ii
+            Index diag_block_local_index = -1;
+            for (Index j = 0; j < n_col_blocks; j++)
+            {
+                if (block_col_idx_ptr[j] == i)
+                {
+                    diag_block_local_index = j;
+                    break;
+                }
+            }
+
+            if (diag_block_local_index < 0)
+            {
+                throw std::runtime_error(
+                    "coefficients: Diagonal block missing in diagonalScale()");
+            }
+
+            // 3) Pointer to diagonal block
+            const TReal* diag_block_ptr =
+                flat_row_vals_ptr +
+                diag_block_local_index * BLOCKSIZE * BLOCKSIZE;
+
+            // 4) Compute scale[k] = 1 / A_ii(k,k)
+            TReal scale[BLOCKSIZE] = {0};
+            for (Index k = 0; k < BLOCKSIZE; k++)
+            {
+                const TReal diag_val = diag_block_ptr[k * BLOCKSIZE + k];
+
+                if (std::abs(diag_val) < 1e-30)
+                {
+                    throw std::runtime_error(
+                        "coefficients: Zero diagonal entry in diagonalScale()");
+                }
+
+                scale[k] = static_cast<TReal>(1.0) / diag_val;
+            }
+
+            // 5) Scale each block in row i
+            for (Index j = 0; j < n_col_blocks; j++)
+            {
+                TReal* block_ptr =
+                    flat_row_vals_ptr + j * BLOCKSIZE * BLOCKSIZE;
+
+                for (Index k = 0; k < BLOCKSIZE; k++)
+                {
+                    const TReal s = scale[k];
+
+                    for (Index l = 0; l < BLOCKSIZE; l++)
+                    {
+                        block_ptr[k * BLOCKSIZE + l] *= s;
+                    }
+                }
+            }
+
+            // 6) Scale the RHS block
+            TReal* bi_ptr = &b[i * BLOCKSIZE];
+            for (Index k = 0; k < BLOCKSIZE; k++)
+            {
+                bi_ptr[k] *= scale[k];
+            }
+        }
+    }
+
 private:
     const Index id_; // coefficient container ID
 
