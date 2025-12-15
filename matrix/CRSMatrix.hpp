@@ -281,6 +281,8 @@ typename CRSMatrix<N>::Index CRSMatrix<N>::bandwidth() const
 {
     assert(this->commSize() == 1 || this->graph_->isGlobalColumnOrder());
 
+    // NOTE [faw 2025-12-15]: serial implementation
+
     Index beta_max = 0;
     for (Index i = 0; i < this->nRows(); i++)
     {
@@ -301,6 +303,8 @@ template <size_t N>
 typename CRSMatrix<N>::Index CRSMatrix<N>::profile() const
 {
     assert(this->commSize() == 1 || this->graph_->isGlobalColumnOrder());
+
+    // NOTE [faw 2025-12-15]: serial implementation
 
     Index envelope = 0;
     for (Index i = 0; i < this->nRows(); i++)
@@ -326,8 +330,16 @@ typename CRSMatrix<N>::DataType norm__frobenius(const CRSMatrix<N>* A)
     {
         norm += a_ij * a_ij;
     }
-    assert(norm > 0);
-    return std::sqrt(norm);
+
+    TReal gnorm = 0;
+    MPI_Allreduce(&norm,
+                  &gnorm,
+                  1,
+                  ::linearSolver::MPIDataType<TReal>::type(),
+                  MPI_SUM,
+                  A->getCommunicator());
+
+    return std::sqrt(gnorm);
 }
 
 template <size_t N>
