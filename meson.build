@@ -134,6 +134,8 @@ install_headers(
   'HYPRE/HYPRESolver.h',
   'PETSc/ContextPETSc.h',
   'PETSc/PETScSolver.h',
+  'Trilinos/ContextTrilinos.h',
+  'Trilinos/TrilinosSolver.h',
   'coefficients.h',
   'controlData.h',
   'linearSolver.h',
