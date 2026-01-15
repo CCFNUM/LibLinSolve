@@ -52,10 +52,12 @@ std::shared_ptr<typename Trilinos<N>::Context>
 Trilinos<N>::createContext(const std::string& system_name,
                            const CRSNodeGraph* graph)
 {
+#ifdef HAS_TRILINOS
     auto ctx = std::make_shared<ContextTrilinos<N>>(
         "Trilinos", system_name, graph, &yaml_conf_);
     ctx_ = ctx;
     ctx_trilinos_ = ctx.get();
+#endif /* HAS_TRILINOS */
     return ctx_;
 }
 
@@ -64,16 +66,19 @@ std::shared_ptr<typename Trilinos<N>::Context>
 Trilinos<N>::createContext(const std::string& system_name,
                            std::shared_ptr<Coefficients> coeffs)
 {
+#ifdef HAS_TRILINOS
     auto ctx = std::make_shared<ContextTrilinos<N>>(
         "Trilinos", system_name, coeffs, &yaml_conf_);
     ctx_ = ctx;
     ctx_trilinos_ = ctx.get();
+#endif /* HAS_TRILINOS */
     return ctx_;
 }
 
 template <size_t N>
 int Trilinos<N>::solve()
 {
+#ifdef HAS_TRILINOS
     assert(ctx_);
     assert(ctx_trilinos_);
 
@@ -88,6 +93,7 @@ int Trilinos<N>::solve()
     ctx_->getControlData().n_iterations = ctx_trilinos_->solve();
     ctx_->solveEpilogue(this->getID(), this->isPreconditioner());
     ++(*ctx_);
+#endif /* HAS_TRILINOS */
     return 0;
 }
 

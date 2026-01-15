@@ -51,6 +51,7 @@ endif
 # optional dependencies
 petsc = dependency('PETSc', required: false)
 hypre = dependency('HYPRE', required: false)
+trilinos = dependency('Trilinos', required: false)
 if petsc.found()
   deps += petsc
   if get_option('CONFIG')
@@ -67,6 +68,14 @@ if hypre.found()
     cpp_args += '-DHAS_HYPRE'
   endif
 endif
+if trilinos.found()
+  deps += trilinos
+  if get_option('CONFIG')
+    conf.set('HAS_TRILINOS', true)
+  else
+    cpp_args += '-DHAS_TRILINOS'
+  endif
+endif
 
 src = [
   'matrix/CRSNodeGraph.cpp',
@@ -77,6 +86,7 @@ hdr = include_directories(
   '.',
   'HYPRE',
   'PETSc',
+  'Trilinos',
   'matrix',
   'matrix/layout',
   'matrix/operators/blockMatrix',

@@ -9,6 +9,7 @@
 #include "linearSolverContext.h"
 #include "memoryLayout.h"
 
+#ifdef HAS_TRILINOS
 #include <BelosLinearProblem.hpp>
 #include <BelosSolverFactory.hpp>
 #include <BelosTpetraAdapter.hpp>
@@ -23,6 +24,7 @@
 #include <Tpetra_CrsMatrix.hpp>
 #include <Tpetra_Map.hpp>
 #include <Tpetra_Vector.hpp>
+#endif /* HAS_TRILINOS */
 
 #include <algorithm>
 #include <cctype>
@@ -33,6 +35,7 @@
 namespace linearSolver
 {
 
+#ifdef HAS_TRILINOS
 namespace details
 {
 inline std::string toLower(std::string value)
@@ -530,6 +533,7 @@ private:
         }
     }
 };
+#endif /* HAS_TRILINOS */
 
 } /* namespace linearSolver */
 
