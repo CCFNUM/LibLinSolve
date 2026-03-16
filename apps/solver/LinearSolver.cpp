@@ -167,6 +167,9 @@ int main(int argc, char* argv[])
                   << ctx->getAMatrix().norm() << '\n';
     }
 
+    std::cout << "BANDWIDTH: " << ctx->getAMatrix().bandwidth() << '\n';
+    std::cout << "PROFILE:   " << ctx->getAMatrix().profile() << '\n';
+
     solver->solve();
     solver->report();
     matrix->report(ctx);
