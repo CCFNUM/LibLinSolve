@@ -51,7 +51,7 @@ endif
 # optional dependencies
 petsc = dependency('PETSc', required: false)
 hypre = dependency('HYPRE', required: false)
-if petsc.found()
+if petsc.found() and get_option('USE_PETSC')
   deps += petsc
   if get_option('CONFIG')
     conf.set('HAS_PETSC', true)
@@ -59,7 +59,7 @@ if petsc.found()
     cpp_args += '-DHAS_PETSC'
   endif
 endif
-if hypre.found()
+if hypre.found() and get_option('USE_HYPRE')
   deps += hypre
   if get_option('CONFIG')
     conf.set('HAS_HYPRE', true)
