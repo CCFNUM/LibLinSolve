@@ -69,6 +69,7 @@ if hypre.found() and get_option('USE_HYPRE')
 endif
 
 src = [
+  'AMGFactory.cpp',
   'matrix/CRSNodeGraph.cpp',
   'utils/Profiler.cpp',
 ]
@@ -103,6 +104,7 @@ libLinSolve = library('LinSolve',
   install: true,
   soversion: soversion,
   version: meson.project_version(),
+  build_rpath: meson.project_build_root() / 'libamg',
   cpp_args: cpp_args
 )
 libs = [libLinSolve]
@@ -110,6 +112,7 @@ libs = [libLinSolve]
 fs = import('fs')
 pkg_mod = import('pkgconfig')
 
+has_amg = false
 if fs.is_dir('libamg')
   subdir('libamg')
   has_amg = true
@@ -129,7 +132,7 @@ endif
 subdir('apps/solver')
 
 install_headers(
-  'AMG.h',
+  'AMGFactory.h',
   'HYPRE/ContextHYPRE.h',
   'HYPRE/HYPRESolver.h',
   'PETSc/ContextPETSc.h',

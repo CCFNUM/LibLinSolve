@@ -11,7 +11,6 @@
 #define VERSION_PATCH @patch@
 #define VERSION @version@
 
-#mesondefine HAS_AMG
 #mesondefine HAS_HYPRE
 #mesondefine HAS_PETSC
 

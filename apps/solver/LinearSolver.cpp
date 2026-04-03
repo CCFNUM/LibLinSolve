@@ -4,7 +4,7 @@
 // Description: Linear solver application
 // Copyright 2025 CCFNUM HSLU T&A. All Rights Reserved.
 
-#include <AMG.h>
+#include <AMGFactory.h>
 #include <HYPRESolver.h>
 #include <PETScSolver.h>
 #include <test/testDiagonalMatrix.h>
@@ -55,6 +55,8 @@ template <size_t BLOCKSIZE>
     Context::tolower(family_type);
 
     LinearSolver* solver = nullptr;
+    using AMGFactory = ::linearSolver::AMGFactory;
+    using AMGFactoryType = ::linearSolver::AMGFactoryType;
     if (family_type == "petsc")
     {
 #ifdef HAS_PETSC
@@ -71,27 +73,21 @@ template <size_t BLOCKSIZE>
     }
     else if (family_type == "amgsolver")
     {
-#ifdef HAS_AMG
-        solver =
-            static_cast<LinearSolver*>(::linearSolver::getAMGSolverInstance(
-                BLOCKSIZE, solver_conf, solver_lookup, layout));
-#endif /* HAS_AMG */
+        AMGFactory f = ::linearSolver::getAMGFactory(AMGFactoryType::AMG);
+        solver = static_cast<LinearSolver*>(
+            f(BLOCKSIZE, solver_conf, layout, &solver_lookup));
     }
     else if (family_type == "gmres")
     {
-#ifdef HAS_AMG
-        solver =
-            static_cast<LinearSolver*>(::linearSolver::getGMRESSolverInstance(
-                BLOCKSIZE, solver_conf, solver_lookup, layout));
-#endif /* HAS_AMG */
+        AMGFactory f = ::linearSolver::getAMGFactory(AMGFactoryType::GMRES);
+        solver = static_cast<LinearSolver*>(
+            f(BLOCKSIZE, solver_conf, layout, &solver_lookup));
     }
     else if (family_type == "directsolver")
     {
-#ifdef HAS_AMG
-        solver =
-            static_cast<LinearSolver*>(::linearSolver::getDirectSolverInstance(
-                BLOCKSIZE, solver_conf, layout));
-#endif /* HAS_AMG */
+        AMGFactory f = ::linearSolver::getAMGFactory(AMGFactoryType::DIRECT);
+        solver = static_cast<LinearSolver*>(
+            f(BLOCKSIZE, solver_conf, layout, nullptr));
     }
 
     return solver;

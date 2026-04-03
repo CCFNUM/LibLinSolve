@@ -1,7 +1,8 @@
 # File       : CMakeLists.txt
 # Created    : Sat Mar 15 2025 17:02:44 (+0100)
 # Author     : Fabian Wermelinger
-# Description: CMake build definitions
+# Description: CMake build definitions (use meson build definitions for
+#              standalone build)
 # Copyright 2025 CCFNUM HSLU T&A. All Rights Reserved.
 cmake_minimum_required(VERSION 3.12)
 project(LinearSolverLibrary VERSION 0.0.0) # version is determined via tag
@@ -50,11 +51,16 @@ set(libLinSolveIncludes
 
 set(libLinSolve "LinSolve")
 add_library(${libLinSolve} SHARED
+    "AMGFactory.cpp"
     "matrix/CRSNodeGraph.cpp"
     "utils/Profiler.cpp"
 )
 set_target_properties(${libLinSolve}
-    PROPERTIES VERSION ${SEMVERSION} SOVERSION ${SOVERSION})
+    PROPERTIES
+    VERSION ${SEMVERSION}
+    SOVERSION ${SOVERSION}
+    BUILD_RPATH "${CMAKE_BINARY_DIR}/libamg"
+)
 target_include_directories(${libLinSolve}
     PRIVATE
     ${MPI_INCLUDE_PATH}
@@ -64,7 +70,7 @@ target_link_libraries(${libLinSolve} ${MPI_CXX_LIBRARIES})
 
 install(TARGETS ${libLinSolve} DESTINATION lib64)
 install(FILES
-  "AMG.h"
+  "AMGFactory.h"
   "HYPRE/ContextHYPRE.h"
   "HYPRE/HYPRESolver.h"
   "PETSc/ContextPETSc.h"
