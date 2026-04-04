@@ -90,7 +90,7 @@ set_target_properties(${libLinSolve}
     PROPERTIES
     VERSION ${SEMVERSION}
     SOVERSION ${SOVERSION}
-    BUILD_RPATH "${CMAKE_BINARY_DIR}/libamg"
+    BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR}/libamg"
 )
 target_include_directories(${libLinSolve}
     PRIVATE
@@ -149,10 +149,8 @@ if(WITH_FASTMATH)
     message("-- Using fast math optimizations (NOT compliant with IEEE)")
 endif()
 
-get_filename_component(libAMG_PATH "libamg" REALPATH)
-if(EXISTS "${libAMG_PATH}")
-    add_subdirectory(${libAMG_PATH})
-    set(libAMG ${libAMG} PARENT_SCOPE)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libamg")
+    add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/libamg")
 endif()
 
 set(libLinSolve ${libLinSolve} PARENT_SCOPE)
