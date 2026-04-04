@@ -24,13 +24,13 @@
 #include <Tpetra_CrsMatrix.hpp>
 #include <Tpetra_Map.hpp>
 #include <Tpetra_Vector.hpp>
-#endif /* HAS_TRILINOS */
 
 #include <algorithm>
 #include <cctype>
 #include <memory>
 #include <string>
 #include <vector>
+#endif /* HAS_TRILINOS */
 
 namespace linearSolver
 {
@@ -533,6 +533,14 @@ private:
         }
     }
 };
+
+#else
+
+template <size_t N>
+class ContextTrilinos
+{
+};
+
 #endif /* HAS_TRILINOS */
 
 } /* namespace linearSolver */

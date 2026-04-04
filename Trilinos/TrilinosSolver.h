@@ -6,6 +6,9 @@
 #ifndef TRILINOSSOLVER_H_UY6H0Z9T
 #define TRILINOSSOLVER_H_UY6H0Z9T
 
+#ifndef NO_LINSOLVE_CONF
+#include "Config.h"
+#endif /* NO_LINSOLVE_CONF */
 #include "ContextTrilinos.h"
 #include "linearSolver.h"
 
