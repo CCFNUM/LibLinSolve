@@ -60,6 +60,9 @@ Trilinos<N>::createContext(const std::string& system_name,
         "Trilinos", system_name, graph, &yaml_conf_);
     ctx_ = ctx;
     ctx_trilinos_ = ctx.get();
+#else
+    throw std::runtime_error(
+        "linearSolver::Trilinos::createContext: not supported by this build");
 #endif /* HAS_TRILINOS */
     return ctx_;
 }
@@ -74,6 +77,9 @@ Trilinos<N>::createContext(const std::string& system_name,
         "Trilinos", system_name, coeffs, &yaml_conf_);
     ctx_ = ctx;
     ctx_trilinos_ = ctx.get();
+#else
+    throw std::runtime_error(
+        "linearSolver::Trilinos::createContext: not supported by this build");
 #endif /* HAS_TRILINOS */
     return ctx_;
 }
@@ -96,6 +102,9 @@ int Trilinos<N>::solve()
     ctx_->getControlData().n_iterations = ctx_trilinos_->solve();
     ctx_->solveEpilogue(this->getID(), this->isPreconditioner());
     ++(*ctx_);
+#else
+    throw std::runtime_error(
+        "linearSolver::Trilinos::solve: not supported by this build");
 #endif /* HAS_TRILINOS */
     return 0;
 }
