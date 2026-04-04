@@ -62,6 +62,9 @@ HYPRE<N>::createContext(const std::string& system_name,
         "HYPRE", system_name, graph, &yaml_conf_);
     ctx_ = ctx;
     ctx_hypre_ = ctx.get();
+#else
+    throw std::runtime_error(
+        "linearSolver::HYPRE::createContext: not supported by this build");
 #endif /* HAS_HYPRE */
     return ctx_;
 }
@@ -76,6 +79,9 @@ HYPRE<N>::createContext(const std::string& system_name,
         "HYPRE", system_name, coeffs, &yaml_conf_);
     ctx_ = ctx;
     ctx_hypre_ = ctx.get();
+#else
+    throw std::runtime_error(
+        "linearSolver::HYPRE::createContext: not supported by this build");
 #endif /* HAS_HYPRE */
     return ctx_;
 }
@@ -102,8 +108,10 @@ int HYPRE<N>::solve()
     ctx_->solveEpilogue(this->getID(), this->isPreconditioner());
 
     ++(*ctx_); // increment solver call count
-#endif         /* HAS_HYPRE */
-
+#else
+    throw std::runtime_error(
+        "linearSolver::HYPRE::solve: not supported by this build");
+#endif /* HAS_HYPRE */
     return 0;
 }
 

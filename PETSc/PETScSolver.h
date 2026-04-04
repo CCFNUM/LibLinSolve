@@ -79,6 +79,9 @@ PETSc<N>::createContext(const std::string& system_name,
         "PETSc", system_name, graph, &yaml_conf_);
     ctx_ = ctx;
     ctx_petsc_ = ctx.get();
+#else
+    throw std::runtime_error(
+        "linearSolver::PETSc::createContext: not supported by this build");
 #endif /* HAS_PETSC */
     return ctx_;
 }
@@ -93,6 +96,9 @@ PETSc<N>::createContext(const std::string& system_name,
         "PETSc", system_name, coeffs, &yaml_conf_);
     ctx_ = ctx;
     ctx_petsc_ = ctx.get();
+#else
+    throw std::runtime_error(
+        "linearSolver::PETSc::createContext: not supported by this build");
 #endif /* HAS_PETSC */
     return ctx_;
 }
@@ -134,8 +140,10 @@ int PETSc<N>::solve()
     ctx_->solveEpilogue(this->getID(), this->isPreconditioner());
 
     ++(*ctx_); // increment solver call count
-#endif         /* HAS_PETSC */
-
+#else
+    throw std::runtime_error(
+        "linearSolver::PETSc::solve: not supported by this build");
+#endif /* HAS_PETSC */
     return 0;
 }
 

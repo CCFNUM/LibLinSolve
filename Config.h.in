@@ -13,5 +13,6 @@
 
 #mesondefine HAS_HYPRE
 #mesondefine HAS_PETSC
+#mesondefine HAS_TRILINOS
 
 #endif /* CONFIG_H_IN_C9NDIOQJ */

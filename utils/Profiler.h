@@ -73,11 +73,12 @@ public:
             active_ = true;
         }
 
-        void stop()
+        void stop(const bool pause = false)
         {
             assert(active_);
             total_time_ += timer_.stop();
-            ++n_samples_;
+            if (!pause)
+                ++n_samples_;
             active_ = false;
         }
 
@@ -170,7 +171,7 @@ public:
     {
         if (stopped_agents_.size() > 0)
         {
-            getAgent(stopped_agents_.top()).stop();
+            getAgent(stopped_agents_.top()).stop(true);
         }
         stopped_agents_.push(name);
         getAgent(name).start();

@@ -67,6 +67,14 @@ if hypre.found() and get_option('USE_HYPRE')
     cpp_args += '-DHAS_HYPRE'
   endif
 endif
+if get_option('USE_TRILINOS')
+  deps += dependency('Trilinos', method: 'cmake', modules: ['Trilinos::all_libs'], required: true)
+  if get_option('CONFIG')
+    conf.set('HAS_TRILINOS', true)
+  else
+    cpp_args += '-DHAS_TRILINOS'
+  endif
+endif
 
 src = [
   'AMGFactory.cpp',
@@ -78,6 +86,7 @@ hdr = include_directories(
   '.',
   'HYPRE',
   'PETSc',
+  'Trilinos',
   'matrix',
   'matrix/layout',
   'matrix/operators/blockMatrix',
@@ -137,6 +146,8 @@ install_headers(
   'HYPRE/HYPRESolver.h',
   'PETSc/ContextPETSc.h',
   'PETSc/PETScSolver.h',
+  'Trilinos/ContextTrilinos.h',
+  'Trilinos/TrilinosSolver.h',
   'coefficients.h',
   'controlData.h',
   'linearSolver.h',

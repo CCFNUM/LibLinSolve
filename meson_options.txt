@@ -25,3 +25,10 @@ option('USE_HYPRE',
   description: 'Use HYPRE wrappers if dependency is found',
   yield: true
 )
+
+option('USE_TRILINOS',
+  type: 'boolean',
+  value: false,
+  description: 'Enable support for Trilinos Belos solver wrapper',
+  yield: true
+)
