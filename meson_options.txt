@@ -11,3 +11,10 @@ option('CONFIG',
   description: 'Generate Config.h header for library builds',
   yield: true
 )
+
+option('USE_TRILINOS',
+  type: 'boolean',
+  value: false,
+  description: 'Enable support for Trilinos Belos solver wrapper',
+  yield: true
+)

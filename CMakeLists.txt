@@ -39,7 +39,7 @@ add_compile_options("-DMPICH_SKIP_MPICXX")
 # Optional Trilinos linear solver support
 # Set -DTrilinos_DIR=<path> in CMake config
 # Requires Belos, Ifpack2, and Tpetra packages to be enabled in Trilinos
-if(NOT Trilinos_FOUND)
+if(WITH_TRILINOS_SOLVER AND NOT Trilinos_FOUND)
     find_package(Trilinos QUIET)
     if(Trilinos_FOUND)
         message(STATUS "Found Trilinos: ${Trilinos_DIR}")
@@ -93,7 +93,7 @@ target_include_directories(${libLinSolve}
 )
 target_link_libraries(${libLinSolve} ${MPI_CXX_LIBRARIES})
 
-if(TRILINOS_LINEAR_SOLVER_AVAILABLE)
+if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
     target_include_directories(${libLinSolve}
         PRIVATE
         ${Trilinos_INCLUDE_DIRS}
@@ -137,7 +137,7 @@ install(FILES
   DESTINATION include
 )
 
-if(DEFINED WITH_FASTMATH AND WITH_FASTMATH)
+if(WITH_FASTMATH)
     string(APPEND CMAKE_CXX_FLAGS_RELEASE " -Ofast -mavx2 -mfma")
     string(APPEND CMAKE_CXX_FLAGS_RELWITHDEBINFO " -Ofast -mavx2 -mfma")
     message("-- Using fast math optimizations (NOT compliant with IEEE)")
@@ -151,8 +151,3 @@ endif()
 
 set(libLinSolve ${libLinSolve} PARENT_SCOPE)
 set(libLinSolve_INC ${libLinSolveIncludes} PARENT_SCOPE)
-if(TRILINOS_LINEAR_SOLVER_AVAILABLE)
-    set(HAS_TRILINOS TRUE PARENT_SCOPE)
-    set(Trilinos_INCLUDE_DIRS ${Trilinos_INCLUDE_DIRS} PARENT_SCOPE)
-    set(Trilinos_LIBRARIES ${Trilinos_LIBRARIES} PARENT_SCOPE)
-endif()

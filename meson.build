@@ -51,7 +51,6 @@ endif
 # optional dependencies
 petsc = dependency('PETSc', required: false)
 hypre = dependency('HYPRE', required: false)
-trilinos = dependency('Trilinos', required: false)
 if petsc.found()
   deps += petsc
   if get_option('CONFIG')
@@ -68,8 +67,8 @@ if hypre.found()
     cpp_args += '-DHAS_HYPRE'
   endif
 endif
-if trilinos.found()
-  deps += trilinos
+if get_option('USE_TRILINOS')
+  deps += dependency('Trilinos', method: 'cmake', modules: ['Trilinos::all_libs'], required: true)
   if get_option('CONFIG')
     conf.set('HAS_TRILINOS', true)
   else
