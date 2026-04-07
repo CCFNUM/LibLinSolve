@@ -5,7 +5,7 @@
 #              standalone build)
 # Copyright 2025 CCFNUM HSLU T&A. All Rights Reserved.
 cmake_minimum_required(VERSION 3.12)
-project(LinearSolverLibrary VERSION 0.0.0) # version is determined via tag
+project(LinearSolverLibrary)
 set(CMAKE_CXX_STANDARD 20)
 
 add_compile_options(
@@ -149,7 +149,7 @@ if(WITH_FASTMATH)
     message("-- Using fast math optimizations (NOT compliant with IEEE)")
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libamg")
+if(WITH_AMGSOLVER AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libamg")
     add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/libamg")
 endif()
 
