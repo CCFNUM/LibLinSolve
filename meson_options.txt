@@ -12,6 +12,13 @@ option('CONFIG',
   yield: true
 )
 
+option('WITH_AMG',
+  type: 'boolean',
+  value: true,
+  description: 'Build AMG sources by default',
+  yield: true
+)
+
 option('USE_PETSC',
   type: 'boolean',
   value: true,

@@ -122,7 +122,7 @@ fs = import('fs')
 pkg_mod = import('pkgconfig')
 
 has_amg = false
-if fs.is_dir('libamg')
+if get_option('WITH_AMG') and fs.is_dir('libamg')
   subdir('libamg')
   has_amg = true
 endif
