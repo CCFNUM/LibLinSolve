@@ -47,6 +47,7 @@ elif mpi_implementation == 'openmpi'
 else
   error('Unknown MPI implementation', mpi_implementation)
 endif
+deps += dependency('dl', required: true)
 
 # optional dependencies
 petsc = dependency('PETSc', required: false)
