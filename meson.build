@@ -9,6 +9,7 @@ project('LinearSolverLibrary', ['cpp', 'c'],
     'git', 'tag', '--list', '--sort=-version:refname', 'v-*',
     capture: true, check: true).stdout().splitlines()[0].strip('v-'),
   license: 'BSD-2-Clause',
+  meson_version: '>=1.2.0',
   default_options: [
     'cpp_std=c++20',
     'b_ndebug=if-release',
