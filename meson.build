@@ -6,8 +6,8 @@
 
 project('LinearSolverLibrary', ['cpp', 'c'],
   version: run_command(
-    'git', 'tag', '--list', '--sort=-version:refname', 'v-*',
-    capture: true, check: true).stdout().splitlines()[0].strip('v-'),
+    'git', 'tag', '--list', '--sort=-v:refname', 'v*', '--merged',
+    capture: true, check: true).stdout().splitlines()[0].strip('v').strip('-'),
   license: 'BSD-2-Clause',
   meson_version: '>=1.2.0',
   default_options: [
