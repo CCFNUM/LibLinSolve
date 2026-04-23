@@ -20,17 +20,18 @@ add_compile_options(
 # %EXTERNAL_REPLACE_START%
 find_package(Git REQUIRED)
 execute_process(
-    COMMAND bash "-c" "git tag --list --sort=-v:refname v* --merged | head -n1 | sed 's/v-\\?//'"
+    COMMAND bash "-c" "git tag --list --sort=-v:refname v* --merged | head -n1"
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     OUTPUT_VARIABLE GIT_DESCRIBE_VERSION
     OUTPUT_STRIP_TRAILING_WHITESPACE
 )
 # %EXTERNAL_REPLACE_END%
-string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" SEMVERSION "${GIT_DESCRIBE_VERSION}")
-string(REGEX MATCH "^([0-9]+)" SOVERSION "${GIT_DESCRIBE_VERSION}")
+string(REGEX REPLACE "^v-?" "" CLEAN_VERSION "${GIT_DESCRIBE_VERSION}")
+string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)" SEMVERSION "${CLEAN_VERSION}")
+string(REGEX MATCH "^([0-9]+)" SOVERSION "${CLEAN_VERSION}")
 if(SEMVERSION)
     message(STATUS "Found libLinSolve version: ${SEMVERSION}")
-    set(PROJECT_VERSION_FULL "${GIT_DESCRIBE_VERSION}")
+    set(PROJECT_VERSION_FULL "${CLEAN_VERSION}")
 else()
     message(FATAL_ERROR "Cannot determine library version")
 endif()
