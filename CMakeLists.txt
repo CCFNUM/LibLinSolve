@@ -43,11 +43,12 @@ find_package(MPI REQUIRED)
 add_compile_options("-DOMPI_SKIP_MPICXX")
 add_compile_options("-DMPICH_SKIP_MPICXX")
 
-# TODO: enable/disable kokkos support entirely
+set(SHARED_OR_STATIC SHARED)
 if(USE_KOKKOS)
     message(STATUS "Enabling Kokkos support")
     add_compile_options("-DUSE_KOKKOS")
     find_package(Kokkos REQUIRED)
+    set(SHARED_OR_STATIC STATIC)
 endif()
 
 # Optional Trilinos linear solver support
@@ -94,7 +95,7 @@ set(libLinSolveIncludes
 )
 
 set(libLinSolve "LinSolve")
-add_library(${libLinSolve} STATIC
+add_library(${libLinSolve} ${SHARED_OR_STATIC}
     "AMGFactory.cpp"
     "matrix/CRSNodeGraph.cpp"
     "utils/Profiler.cpp"
@@ -112,8 +113,9 @@ target_include_directories(${libLinSolve}
 )
 target_link_libraries(${libLinSolve} ${MPI_CXX_LIBRARIES})
 
-# TODO: enable/disable kokkos support entirely
-target_link_libraries(${libLinSolve} Kokkos::kokkos)
+if(USE_KOKKOS)
+    target_link_libraries(${libLinSolve} Kokkos::kokkos)
+endif()
 
 if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
     target_include_directories(${libLinSolve}
