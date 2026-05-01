@@ -12,8 +12,69 @@ namespace linearSolver
 template <typename Datatype>
 class MyNgpVector
 {
+protected:
+    // #ifdef KOKKOS_ENABLE_CUDA
+    //     using DeviceSpace = Kokkos::CudaSpace;
+    // #elif defined(KOKKOS_ENABLE_HIP)
+    //     using DeviceSpace = Kokkos::HIPSpace;
+    // #else
+    //     using DeviceSpace = Kokkos::HostSpace;
+    // #endif
+    using DualType = Kokkos::DualView<Datatype*>;
+    using DeviceType = typename DualType::t_dev;
+    using HostType = typename DualType::t_host;
+    using DeviceSpace = DeviceType::memory_space;
+    using HostSpace = HostType::memory_space;
+
+    using ConstHostType = typename HostType::const_type;
 
 public:
+    template <typename ViewType>
+    class HostIterator
+    {
+    public:
+        using reference = typename ViewType::reference_type;
+
+        HostIterator(ViewType view, size_t index) : mView(view), mIndex(index)
+        {
+        }
+
+        reference operator*() const
+        {
+            return mView(mIndex);
+        }
+
+        HostIterator& operator++()
+        {
+            ++mIndex;
+            return *this;
+        }
+
+        HostIterator operator++(int)
+        {
+            HostIterator tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        bool operator==(const HostIterator& other) const
+        {
+            return mIndex == other.mIndex;
+        }
+
+        bool operator!=(const HostIterator& other) const
+        {
+            return !(*this == other);
+        }
+
+    private:
+        ViewType mView;
+        size_t mIndex;
+    };
+
+    using iterator = HostIterator<HostType>;
+    using const_iterator = HostIterator<ConstHostType>;
+
     MyNgpVector(const std::string& n) : MyNgpVector(n, 0)
     {
     }
@@ -146,6 +207,38 @@ public:
         return values.view_host();
     }
 
+    /***  HOST RANGE-BASED FOR LOOP SUPPORT ***/
+
+    iterator begin()
+    {
+        return iterator(values.view_host(), 0);
+    }
+
+    iterator end()
+    {
+        return iterator(values.view_host(), mSize);
+    }
+
+    const_iterator begin() const
+    {
+        return const_iterator(ConstHostType(values.view_host()), 0);
+    }
+
+    const_iterator end() const
+    {
+        return const_iterator(ConstHostType(values.view_host()), mSize);
+    }
+
+    const_iterator cbegin() const
+    {
+        return begin();
+    }
+
+    const_iterator cend() const
+    {
+        return end();
+    }
+
     /***  HOST/DEVICE FUNCTIONS ***/
     // TODO: don't like the size member. should be obtained from view directly
     KOKKOS_INLINE_FUNCTION size_t size() const
@@ -191,20 +284,6 @@ public:
     {
         return values.view_device();
     }
-
-protected:
-    // #ifdef KOKKOS_ENABLE_CUDA
-    //     using DeviceSpace = Kokkos::CudaSpace;
-    // #elif defined(KOKKOS_ENABLE_HIP)
-    //     using DeviceSpace = Kokkos::HIPSpace;
-    // #else
-    //     using DeviceSpace = Kokkos::HostSpace;
-    // #endif
-    using DualType = Kokkos::DualView<Datatype*>;
-    using DeviceType = typename DualType::t_dev;
-    using HostType = typename DualType::t_host;
-    using DeviceSpace = DeviceType::memory_space;
-    using HostSpace = HostType::memory_space;
 
 public:
     using SubviewTypeHost =

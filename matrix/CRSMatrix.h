@@ -153,8 +153,7 @@ public:
 #ifdef USE_KOKKOS // TODO: this is a hack. i think diag should be accessed as
                   // maybe a subview?
 
-    KOKKOS_INLINE_FUNCTION const DataType& dofDiag(Index iRow,
-                                                   Index dof = 0) const
+    KOKKOS_INLINE_FUNCTION DataType& dofDiag(Index iRow, Index dof = 0) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
