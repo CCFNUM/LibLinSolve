@@ -34,7 +34,7 @@ AMGFactory getAMGFactory(const AMGFactoryType type)
     {
         f = (AMGFactory)dlsym(handle, "getGMRESSolverInstance");
     }
-    else if (AMGFactoryType::GMRES == type)
+    else if (AMGFactoryType::DIRECT == type)
     {
         f = (AMGFactory)dlsym(handle, "getDirectSolverInstance");
     }
