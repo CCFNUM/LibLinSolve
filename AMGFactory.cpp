@@ -6,16 +6,25 @@
 
 #include "AMGFactory.h"
 #include <cassert>
+
+#ifdef LIBLINSOLVE_STATIC
+extern linearSolver::AMGFactory getAMGSolverInstance;
+extern linearSolver::AMGFactory getGMRESSolverInstance;
+extern linearSolver::AMGFactory getDirectSolverInstance;
+#define SYMBOL(x) (x)
+#else
 #include <dlfcn.h>
 #include <stdexcept>
-
 static void* handle = nullptr;
+#define SYMBOL(x) (linearSolver::AMGFactory) dlsym(handle, #x)
+#endif /* LIBLINSOLVE_INC */
 
 namespace linearSolver
 {
 
 AMGFactory getAMGFactory(const AMGFactoryType type)
 {
+#ifndef LIBLINSOLVE_STATIC
     if (!handle)
     {
         handle = dlopen("libAMG.so", RTLD_NOW | RTLD_LOCAL);
@@ -24,19 +33,20 @@ AMGFactory getAMGFactory(const AMGFactoryType type)
             throw std::runtime_error(dlerror());
         }
     }
+#endif /* LIBLINSOLVE_STATIC */
 
     AMGFactory f = nullptr;
     if (AMGFactoryType::AMG == type)
     {
-        f = (AMGFactory)dlsym(handle, "getAMGSolverInstance");
+        f = SYMBOL(getAMGSolverInstance);
     }
     else if (AMGFactoryType::GMRES == type)
     {
-        f = (AMGFactory)dlsym(handle, "getGMRESSolverInstance");
+        f = SYMBOL(getGMRESSolverInstance);
     }
     else if (AMGFactoryType::DIRECT == type)
     {
-        f = (AMGFactory)dlsym(handle, "getDirectSolverInstance");
+        f = SYMBOL(getDirectSolverInstance);
     }
 
     assert(f);
@@ -44,3 +54,5 @@ AMGFactory getAMGFactory(const AMGFactoryType type)
 }
 
 } /* namespace linearSolver */
+
+#undef SYMBOL

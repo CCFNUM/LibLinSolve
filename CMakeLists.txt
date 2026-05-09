@@ -8,6 +8,8 @@ cmake_minimum_required(VERSION 3.12)
 project(LinearSolverLibrary)
 set(CMAKE_CXX_STANDARD 20)
 
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+
 add_compile_options(
     -Wall
     -Wextra
@@ -43,12 +45,10 @@ find_package(MPI REQUIRED)
 add_compile_options("-DOMPI_SKIP_MPICXX")
 add_compile_options("-DMPICH_SKIP_MPICXX")
 
-set(SHARED_OR_STATIC SHARED)
 if(USE_KOKKOS)
     message(STATUS "Enabling Kokkos support")
     add_compile_options("-DUSE_KOKKOS")
     find_package(Kokkos REQUIRED)
-    set(SHARED_OR_STATIC STATIC)
 endif()
 
 # Optional Trilinos linear solver support
@@ -94,8 +94,12 @@ set(libLinSolveIncludes
     "${CMAKE_CURRENT_LIST_DIR}/utils"
 )
 
+if(NOT BUILD_SHARED_LIBS)
+    add_compile_options("-DLIBLINSOLVE_STATIC")
+endif()
+
 set(libLinSolve "LinSolve")
-add_library(${libLinSolve} ${SHARED_OR_STATIC}
+add_library(${libLinSolve}
     "AMGFactory.cpp"
     "matrix/CRSNodeGraph.cpp"
     "utils/Profiler.cpp"
@@ -111,10 +115,10 @@ target_include_directories(${libLinSolve}
     ${MPI_INCLUDE_PATH}
     ${libLinSolveIncludes}
 )
-target_link_libraries(${libLinSolve} ${MPI_CXX_LIBRARIES})
+target_link_libraries(${libLinSolve} PRIVATE ${MPI_CXX_LIBRARIES})
 
 if(USE_KOKKOS)
-    target_link_libraries(${libLinSolve} Kokkos::kokkos)
+    target_link_libraries(${libLinSolve} PRIVATE Kokkos::kokkos)
 endif()
 
 if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
@@ -123,7 +127,7 @@ if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
         ${Trilinos_INCLUDE_DIRS}
         ${Trilinos_TPL_INCLUDE_DIRS}
     )
-    target_link_libraries(${libLinSolve}
+    target_link_libraries(${libLinSolve} PRIVATE
         ${Trilinos_LIBRARIES}
         ${Trilinos_TPL_LIBRARIES}
     )
@@ -169,6 +173,12 @@ endif()
 
 if(WITH_AMGSOLVER AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libamg")
     add_subdirectory("${CMAKE_CURRENT_LIST_DIR}/libamg")
+
+    # TODO [faw 2026-05-09]: add option for user specified path to libAMG.a to
+    # support standalone AMG builds
+    if(NOT BUILD_SHARED_LIBS)
+        target_link_libraries(${libLinSolve} PRIVATE ${libAMG})
+    endif()
 endif()
 
 set(libLinSolve ${libLinSolve} PARENT_SCOPE)
