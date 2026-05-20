@@ -8,13 +8,15 @@
 
 #include "CRSMatrix.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
-#include <memory>
+#include <map>
 #include <mpi.h>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -141,6 +143,132 @@ public:
     {
         return LU_data_;
     }
+
+    // Schur-complement augmented constrained system:
+    //
+    //     A*x + G*lambda = b
+    //     H*x + M*lambda = bc
+    //
+    // with block form:
+    //
+    //     [ A  G ] [ x      ] = [ b  ]
+    //     [ H  M ] [ lambda ]   [ bc ]
+    //
+    // where:
+    //
+    //   A, b   : original system matrix and right-hand-side, respectively.
+    //            The original problem is not assumed to be singular or
+    //            underdetermined; the augmented system represents an additional
+    //            constrained problem built on top of A*x = b.
+    //
+    //   x      : original/primal degrees of freedom.
+    //
+    //   lambda : constraint multiplier degrees of freedom. These are auxiliary
+    //            unknowns introduced to impose the constraint equations.
+    //
+    //   G      : multiplier-to-primal coupling block. It contributes lambda
+    //            sensitivities/corrections to the original x-equations; i.e.
+    //            rows associated with x and columns associated with lambda.
+    //
+    //   H      : primal-to-constraint coupling block. It contributes x
+    //            sensitivities to the constraint equations; i.e. rows associated
+    //            with constraints and columns associated with x.
+    //
+    //   M      : multiplier-to-constraint block. It couples lambda DOFs to the
+    //            constraint equations.
+    //
+    //   bc     : right-hand-side/residual vector of the constraint equations.
+    //
+    // Eliminating lambda gives the Schur-condensed system:
+    //
+    //     (A - G*M^{-1}*H)*x = b - G*M^{-1}*bc
+    //
+    // Therefore, Schur condensation modifies the original A and b so that the
+    // solved system includes the effect of the imposed constraints without
+    // keeping lambda as an active unknown in the final linear solve.
+    struct SchurData
+    {
+        using GlobalNodeId = std::uint64_t;
+        static constexpr std::size_t NSq = N * N;
+        using Block = std::array<DataType, NSq>;
+
+        std::map<GlobalNodeId, std::map<int, Block>> G;
+        std::vector<std::map<GlobalNodeId, Block>> H;
+        Vector M;     // numC * NSq
+        Vector bc;    // numC * N
+
+        // Cached by condenseSchur(), consumed by calculateLambda().
+        Vector Minv;
+        Vector MinvBc;
+        std::vector<std::map<GlobalNodeId, Block>> MinvH;
+        std::vector<char> lambdaActive;
+
+        // Populated by calculateLambda().
+        Vector lambda; // numC * N
+
+        // Block-level fragment writers
+        Block& GBlock(GlobalNodeId row, int c) { return G[row][c]; }
+        Block& HBlock(int c, GlobalNodeId col)
+        {
+            assert(c >= 0 && static_cast<std::size_t>(c) < H.size());
+            return H[static_cast<std::size_t>(c)][col];
+        }
+        DataType* DBlock(int c)
+        {
+            assert(c >= 0 &&
+                   static_cast<std::size_t>(c) * NSq < M.size());
+            return &M[static_cast<std::size_t>(c) * NSq];
+        }
+        DataType* bcBlock(int c)
+        {
+            assert(c >= 0 &&
+                   static_cast<std::size_t>(c) * N < bc.size());
+            return &bc[static_cast<std::size_t>(c) * N];
+        }
+    };
+
+    SchurData& getSchurData() { return schur_data_; }
+    const SchurData& getSchurData() const { return schur_data_; }
+
+    // Idempotent sizing helper. Call at the start of every assemble
+    // pass before the per-fragment scatter runs.
+    void resizeSchurCoefficients(std::size_t numC)
+    {
+        schur_data_.G.clear();
+        schur_data_.H.assign(numC, {});
+        schur_data_.M.assign(numC * SchurData::NSq, 0.0);
+        schur_data_.bc.assign(numC * BLOCKSIZE, 0.0);
+    }
+
+    // Recovered seam value at cId, component ic. Returns 0 for c
+    // slots that were not active during the most recent
+    // condenseSchur() / calculateLambda() pass.
+    DataType lambda(int cId, std::size_t ic) const
+    {
+        assert(cId >= 0);
+        const std::size_t idx =
+            static_cast<std::size_t>(cId) * BLOCKSIZE + ic;
+        if (idx >= schur_data_.lambda.size())
+            return DataType(0);
+        return schur_data_.lambda[idx];
+    }
+
+    std::size_t lambdaSize() const
+    {
+        return schur_data_.lambda.size() / BLOCKSIZE;
+    }
+
+    // Cross-rank merges M, bc, H; pre-computes per-c Minv,
+    // MinvBc, and per-(c, col) MinvH; then sums the per-(row, c)
+    // Schur deltas into the matrix A and right-hand side b for every
+    // locally-owned row that the assembly pass touched.
+    template <typename GlobalToLocal>
+    void condenseSchur(GlobalToLocal&& globalToLocal);
+
+    // Recover the Lagrange-multiplier seam values from the solved
+    // x vector.
+    template <typename GlobalToLocal>
+    void calculateLambda(GlobalToLocal&& globalToLocal);
 
     void getMemoryFootprint(MemoryFootprint& data,
                             MemoryFootprint& connectivity) const
@@ -340,7 +468,45 @@ private:
     // auxiliary data (not initialized nor resized during coefficient
     // construction since only required for specific solvers)
     LUData LU_data_;
+
+    // GGI constrained-mortar augmented-system storage + caches.
+    // Sized lazily via resizeSchurCoefficients(numC); empty for
+    // assembly passes that do not use CM.
+    SchurData schur_data_;
 };
+
+} /* namespace linearSolver */
+
+// schur-complement operations (wrapper bodies)
+
+#include "matrix/CRSNodeGraph.h"
+#include "matrix/operators/schur/schurCondense.h"
+#include "matrix/operators/schur/schurLambdaRecovery.h"
+
+namespace linearSolver
+{
+
+template <size_t N>
+template <typename GlobalToLocal>
+void coefficients<N>::condenseSchur(GlobalToLocal&& globalToLocal)
+{
+    schur::condense<N>(*static_cast<Matrix*>(this),
+                       b_,
+                       schur_data_,
+                       this->getCommunicator(),
+                       *this->getGraph(),
+                       std::forward<GlobalToLocal>(globalToLocal));
+}
+
+template <size_t N>
+template <typename GlobalToLocal>
+void coefficients<N>::calculateLambda(GlobalToLocal&& globalToLocal)
+{
+    schur::calculateLambda<N>(x_,
+                             schur_data_,
+                             this->getCommunicator(),
+                             std::forward<GlobalToLocal>(globalToLocal));
+}
 
 } /* namespace linearSolver */
 

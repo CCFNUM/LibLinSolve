@@ -267,6 +267,7 @@ inline void invert(const TReal*, TReal*)
 // implementations/specializations
 #include "blockMatrixDeterminant.hpp"
 #include "blockMatrixInvert.hpp"
+#include "blockMatrixIsZero.hpp"
 
 // TODO: [fab4100@posteo.net; 2024-05-01] AVX implementations MV and MM
 
