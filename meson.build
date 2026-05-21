@@ -93,6 +93,7 @@ hdr = include_directories(
   'matrix/layout',
   'matrix/operators/blockMatrix',
   'matrix/operators/distributed',
+  'matrix/operators/scaling',
   'utils',
 )
 

@@ -264,7 +264,7 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
                     colKey = static_cast<Index>(colGid);
                 }
 
-                       // Walk the row to find the column offset.
+                // Walk the row to find the column offset.
                 Index offset = 0;
                 while (offset < length && rowCols[offset] != colKey)
                 {
@@ -309,7 +309,7 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
         return;
     }
 
-           // Start from MinvBc (= Minv * bc).
+    // Start from MinvBc (= Minv * bc).
     sd.lambda.assign(numC * N, DataType(0));
     for (std::size_t c = 0; c < numC; ++c)
     {
@@ -352,7 +352,7 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
                 xvec[jc] = x[colLid * N + jc];
             }
 
-                   // lambda[c] -= MinvH[c, col] * xvec
+            // lambda[c] -= MinvH[c, col] * xvec
             BlockMatrix::matrixVectorSub<NB>(MinvHBlock.data(),
                                              xvec,
                                              &sd.lambda[c * N]);
@@ -386,7 +386,7 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
     }
 }
 
-} /* namespace Schur */
+} /* namespace schur */
 } /* namespace linearSolver */
 
 #endif /* SCHUR_H_LWS3K2MX */
