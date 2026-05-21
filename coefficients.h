@@ -210,7 +210,7 @@ public:
             assert(c >= 0 && static_cast<std::size_t>(c) < H.size());
             return H[static_cast<std::size_t>(c)][col];
         }
-        DataType* DBlock(int c)
+        DataType* MBlock(int c)
         {
             assert(c >= 0 &&
                    static_cast<std::size_t>(c) * NSq < M.size());
