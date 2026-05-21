@@ -203,7 +203,7 @@ public:
         std::vector<char> cActive;
         Vector lambda; // numC * N
 
-        // Block-level fragment writers
+        // Block-level writers
         Block& GBlock(GlobalNodeId row, int c) { return G[row][c]; }
         Block& HBlock(int c, GlobalNodeId col)
         {
@@ -227,8 +227,7 @@ public:
     SchurData& getSchurData() { return schur_data_; }
     const SchurData& getSchurData() const { return schur_data_; }
 
-    // Idempotent sizing helper. Call at the start of every assemble
-    // pass before the per-fragment scatter runs.
+    // Idempotent sizing helper
     void resizeSchurCoefficients(std::size_t numC)
     {
         schur_data_.G.clear();
@@ -436,9 +435,8 @@ private:
     // construction since only required for specific solvers)
     LUData LU_data_;
 
-    // GGI constrained-mortar augmented-system storage + caches.
-    // Sized lazily via resizeSchurCoefficients(numC); empty for
-    // assembly passes that do not use CM.
+    // augmented-system storage + caches.
+    // Sized lazily via resizeSchurCoefficients(numC)
     SchurData schur_data_;
 };
 
