@@ -168,6 +168,7 @@ install_headers(
   'matrix/operators/distributed/CRSMatrixVector.h',
   'matrix/operators/distributed/CRSResidual.h',
   'residual.h',
+  'schur.h',
   'utils/Common.h',
   'utils/Profiler.h',
   install_dir: 'include'

@@ -145,9 +145,8 @@ install(FILES
   "matrix/operators/blockMatrix/blockMatrixOperators.h"
   "matrix/operators/distributed/CRSMatrixVector.h"
   "matrix/operators/distributed/CRSResidual.h"
-  "matrix/operators/schur/schurCondense.h"
-  "matrix/operators/schur/schurLambdaRecovery.h"
   "residual.h"
+  "schur.h"
   "utils/Common.h"
   "utils/Profiler.h"
   DESTINATION include

@@ -197,13 +197,10 @@ public:
         Vector M;     // numC * NSq
         Vector bc;    // numC * N
 
-        // Cached by condenseSchur(), consumed by calculateLambda().
         Vector Minv;
         Vector MinvBc;
         std::vector<std::map<GlobalNodeId, Block>> MinvH;
-        std::vector<char> lambdaActive;
-
-        // Populated by calculateLambda().
+        std::vector<char> cActive;
         Vector lambda; // numC * N
 
         // Block-level fragment writers
@@ -239,36 +236,6 @@ public:
         schur_data_.M.assign(numC * SchurData::NSq, 0.0);
         schur_data_.bc.assign(numC * BLOCKSIZE, 0.0);
     }
-
-    // Recovered seam value at cId, component ic. Returns 0 for c
-    // slots that were not active during the most recent
-    // condenseSchur() / calculateLambda() pass.
-    DataType lambda(int cId, std::size_t ic) const
-    {
-        assert(cId >= 0);
-        const std::size_t idx =
-            static_cast<std::size_t>(cId) * BLOCKSIZE + ic;
-        if (idx >= schur_data_.lambda.size())
-            return DataType(0);
-        return schur_data_.lambda[idx];
-    }
-
-    std::size_t lambdaSize() const
-    {
-        return schur_data_.lambda.size() / BLOCKSIZE;
-    }
-
-    // Cross-rank merges M, bc, H; pre-computes per-c Minv,
-    // MinvBc, and per-(c, col) MinvH; then sums the per-(row, c)
-    // Schur deltas into the matrix A and right-hand side b for every
-    // locally-owned row that the assembly pass touched.
-    template <typename GlobalToLocal>
-    void condenseSchur(GlobalToLocal&& globalToLocal);
-
-    // Recover the Lagrange-multiplier seam values from the solved
-    // x vector.
-    template <typename GlobalToLocal>
-    void calculateLambda(GlobalToLocal&& globalToLocal);
 
     void getMemoryFootprint(MemoryFootprint& data,
                             MemoryFootprint& connectivity) const
@@ -474,39 +441,6 @@ private:
     // assembly passes that do not use CM.
     SchurData schur_data_;
 };
-
-} /* namespace linearSolver */
-
-// schur-complement operations (wrapper bodies)
-
-#include "matrix/CRSNodeGraph.h"
-#include "matrix/operators/schur/schurCondense.h"
-#include "matrix/operators/schur/schurLambdaRecovery.h"
-
-namespace linearSolver
-{
-
-template <size_t N>
-template <typename GlobalToLocal>
-void coefficients<N>::condenseSchur(GlobalToLocal&& globalToLocal)
-{
-    schur::condense<N>(*static_cast<Matrix*>(this),
-                       b_,
-                       schur_data_,
-                       this->getCommunicator(),
-                       *this->getGraph(),
-                       std::forward<GlobalToLocal>(globalToLocal));
-}
-
-template <size_t N>
-template <typename GlobalToLocal>
-void coefficients<N>::calculateLambda(GlobalToLocal&& globalToLocal)
-{
-    schur::calculateLambda<N>(x_,
-                             schur_data_,
-                             this->getCommunicator(),
-                             std::forward<GlobalToLocal>(globalToLocal));
-}
 
 } /* namespace linearSolver */
 
