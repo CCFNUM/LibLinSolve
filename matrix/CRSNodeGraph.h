@@ -16,6 +16,10 @@
 #include <span>
 #include <vector>
 
+#include <Kokkos_Core.hpp>
+// #include <KokkosSparse_CrsMatrix.hpp>
+#include "KokkosSparse_BsrMatrix.hpp"
+
 #ifdef GRAPH_INDEX_64BIT
 typedef int64_t TGraphIndex;
 #else
@@ -142,6 +146,37 @@ public:
     // should be a signed integral.
     using Index = TGraphIndex;
 
+    // DAVEKOKKOS: move accelexecspace to global
+    // DAVEKOKKOS: these also exist in crsmatrix.h, move to single definition
+#ifdef SOLVER_SINGLE_PRECISION
+    typedef float TRealSolver;
+#else
+    typedef double TRealSolver;
+#endif /* SOLVER_SINGLE_PRECISION */
+    using DataType = TRealSolver;
+
+    using AccelExecSpace = Kokkos::DefaultExecutionSpace;
+    using execution_space = AccelExecSpace;
+    using memory_space = execution_space::memory_space;
+    using device_type = Kokkos::Device<execution_space, memory_space>;
+
+    using matrix_type =
+        KokkosSparse::CrsMatrix<DataType, Index, device_type, void, Index>;
+
+    using graph_type = typename matrix_type::staticcrsgraph_type;
+    using row_map_type = typename graph_type::row_map_type;
+    using entries_type = typename graph_type::entries_type;
+    using values_type = typename matrix_type::values_type;
+
+    using range_type = Kokkos::pair<Index, Index>;
+    using row_map_subview_type = Kokkos::Subview<row_map_type, range_type>;
+    using entries_subview_type = Kokkos::Subview<entries_type, range_type>;
+    using values_subview_type = Kokkos::Subview<values_type, range_type>;
+
+    // row_map_type: view<const Index*>
+    // entries_type: view<Index*>
+    // values_type: view<DataType*>
+
     struct PackInfo
     {
         int remote_rank;
@@ -215,7 +250,7 @@ public:
 
     inline Index nIndices() const
     {
-        return row_ptr_.back();
+        return row_ptr_(row_ptr_.extent(0) - 1);
     }
 
     inline unsigned long long nGlobalIndices() const
@@ -224,21 +259,22 @@ public:
         return global_number_indices_;
     }
 
-    inline const std::vector<Index>& offsets() const
+    // DAVEKOKKOS: this should be a row_map_type
+    inline const entries_type& offsets() const
     {
         assert(is_built_);
         assert(row_ptr_.size() > 1);
         return row_ptr_;
     }
 
-    inline const std::vector<Index>& indices() const
+    inline const entries_type& indices() const
     {
         assert(is_built_);
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
         return primary_indices_;
     }
 
-    inline const std::vector<Index>& diagonalIndicesOffset() const
+    inline const entries_type& diagonalIndicesOffset() const
     {
         assert(is_built_);
         assert(static_cast<Index>(diagonal_row_offset_.size()) ==
@@ -280,10 +316,10 @@ public:
         return row_nnz_owned_[i_row];
     }
 
-    inline std::span<const Index> nnzOwned() const
+    inline const entries_type& nnzOwned() const
     {
         assert(is_built_);
-        return std::span<const Index>(row_nnz_owned_);
+        return row_nnz_owned_;
     }
 
     inline Index nnzGhost(const Index i_row) const
@@ -294,10 +330,10 @@ public:
         return row_nnz_ghost_[i_row];
     }
 
-    inline std::span<const Index> nnzGhost() const
+    inline const entries_type& nnzGhost() const
     {
         assert(is_built_);
-        return std::span<const Index>(row_nnz_ghost_);
+        return row_nnz_ghost_;
     }
 
     inline Index localToGlobalIndex(const Index j_local) const
@@ -324,11 +360,11 @@ public:
         return j_global - this->global_row_offset_;
     }
 
-    std::span<const Index> localIndices() const;
-    std::span<const Index> globalIndices() const;
+    const entries_type& localIndices() const;
+    const entries_type& globalIndices() const;
 
-    std::span<const Index> rowLocalIndices(const Index i_row) const;
-    std::span<const Index> rowGlobalIndices(const Index i_row) const;
+    entries_subview_type rowLocalIndices(const Index i_row) const;
+    entries_subview_type rowGlobalIndices(const Index i_row) const;
 
     void getMemoryFootprint(MemoryFootprint& data) const;
     void serialize(std::ofstream& out) const;
@@ -345,16 +381,17 @@ protected:
     bool is_built_;
 
     // CRS data structures
-    std::vector<Index> row_ptr_;           // row offsets
-    std::vector<Index> primary_indices_;   // main column index order (sorted)
-    std::vector<Index> secondary_indices_; // complement column index order
+    // DAVEKOKKOS: row_ptr_ should be a row_map_type!!!
+    entries_type row_ptr_;           // row offsets
+    entries_type primary_indices_;   // main column index order (sorted)
+    entries_type secondary_indices_; // complement column index order
 
     // per row nnz
-    std::vector<Index> row_nnz_owned_; // nnz per row (owned)
-    std::vector<Index> row_nnz_ghost_; // nnz per row (total ghosts)
+    entries_type row_nnz_owned_; // nnz per row (owned)
+    entries_type row_nnz_ghost_; // nnz per row (total ghosts)
 
     // diagonal
-    std::vector<Index> diagonal_row_offset_; // index into *_indices_
+    entries_type diagonal_row_offset_; // index into *_indices_
 
     // MPI
     Index global_row_offset_;

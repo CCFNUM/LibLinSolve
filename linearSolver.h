@@ -92,7 +92,9 @@ public:
             unsigned long long local_zeros[2] = {0};
             unsigned long long &is_zero = local_zeros[0];
             unsigned long long &almost_zero = local_zeros[1];
-            for (typename Matrix::DataType c : coeffs.valuesRef()) {
+            for (size_t i = 0; i<coeffs.valuesRef().size(); ++i) 
+            {
+                typename Matrix::DataType c = coeffs.valuesRef()(i);
                 c = std::abs(c);
                 if (c == zero) {
                     ++is_zero;
