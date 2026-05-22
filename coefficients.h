@@ -230,6 +230,8 @@ public:
     // Idempotent sizing helper
     void resizeSchurCoefficients(std::size_t numC)
     {
+        if (numConstraints() == numC)
+            return;
         schur_data_.G.clear();
         schur_data_.H.assign(numC, {});
         schur_data_.M.assign(numC * SchurData::NSq, 0.0);
