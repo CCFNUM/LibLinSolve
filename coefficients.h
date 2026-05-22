@@ -238,9 +238,11 @@ public:
         schur_data_.bc.assign(numC * BLOCKSIZE, 0.0);
     }
 
+    // Number of constraint equations carried by the augmented system —
+    // equivalently, the number of multiplier (lambda) slots.
     std::size_t numConstraints() const
     {
-        return schur_data_.M.size() / SchurData::NSq;
+        return schur_data_.H.size();
     }
 
     void getMemoryFootprint(MemoryFootprint& data,
