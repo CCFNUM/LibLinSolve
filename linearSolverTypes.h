@@ -1,5 +1,5 @@
-#ifndef LINEARSOLVERTYPES
-#define LINEARSOLVERTYPES
+#ifndef LINEARSOLVERTYPES_H
+#define LINEARSOLVERTYPES_H
 
 #ifdef GRAPH_INDEX_64BIT
 typedef int64_t TGraphIndex;
@@ -13,6 +13,7 @@ typedef float TRealSolver;
 typedef double TRealSolver;
 #endif /* SOLVER_SINGLE_PRECISION */
 
+#ifdef USE_KOKKOS
 #include <Kokkos_Core.hpp>
 // #include <KokkosSparse_CrsMatrix.hpp>
 #include "KokkosSparse_BsrMatrix.hpp"
@@ -39,5 +40,10 @@ using ScalarSubview = Kokkos::Subview<ScalarView, RangeType>;
 // RowPtrSubview: view<const TGraphIndex*>
 // IndexSubview: view<TGraphIndex*>
 // ScalarSubview: view<DataType*>
+#else
 
-#endif
+NOT_SUPPORTED
+
+#endif // USE_KOKKOS
+
+#endif // LINEARSOLVERTYPES_H
