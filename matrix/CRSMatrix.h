@@ -15,12 +15,6 @@
 #include <span>
 #include <vector>
 
-#ifdef SOLVER_SINGLE_PRECISION
-typedef float TRealSolver;
-#else
-typedef double TRealSolver;
-#endif /* SOLVER_SINGLE_PRECISION */
-
 namespace linearSolver
 {
 

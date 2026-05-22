@@ -43,7 +43,6 @@ find_package(MPI REQUIRED)
 
 if(USE_KOKKOS)
     message(STATUS "Enabling Kokkos support")
-    add_compile_options("-DUSE_KOKKOS")
     find_package(Kokkos REQUIRED)
     find_package(KokkosKernels REQUIRED)
 endif()
@@ -113,6 +112,10 @@ target_include_directories(${libLinSolve}
     ${libLinSolveIncludes}
 )
 target_link_libraries(${libLinSolve} PRIVATE MPI::MPI_C)
+
+if(USE_KOKKOS)
+    target_compile_definitions(${libLinSolve} PUBLIC USE_KOKKOS)
+endif()
 
 if(USE_KOKKOS)
     target_link_libraries(${libLinSolve}
