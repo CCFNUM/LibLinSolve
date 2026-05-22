@@ -49,15 +49,15 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
 
         if (nproc > 1)
         {
-            std::vector<DataType> Dlocal = sd.M;
-            MPI_Allreduce(Dlocal.data(),
+            std::vector<DataType> Mlocal = sd.M;
+            MPI_Allreduce(Mlocal.data(),
                           sd.M.data(),
                           static_cast<int>(sd.M.size()),
                           MPI_DOUBLE,
                           MPI_SUM,
                           comm);
-            std::vector<DataType> rcsLocal = sd.bc;
-            MPI_Allreduce(rcsLocal.data(),
+            std::vector<DataType> bcLocal = sd.bc;
+            MPI_Allreduce(bcLocal.data(),
                           sd.bc.data(),
                           static_cast<int>(sd.bc.size()),
                           MPI_DOUBLE,
@@ -154,19 +154,19 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
     sd.cActive.assign(numC, 0);
     for (std::size_t c = 0; c < numC; ++c)
     {
-        const DataType* Dblock = &sd.M[c * SchurData::NSq];
-        if (BlockMatrix::isZero<NB>(Dblock))
+        const DataType* Mblock = &sd.M[c * SchurData::NSq];
+        if (BlockMatrix::isZero<NB>(Mblock))
         {
             continue;
         }
         sd.cActive[c] = 1;
-        const DataType det = BlockMatrix::determinant<NB>(Dblock);
+        const DataType det = BlockMatrix::determinant<NB>(Mblock);
         if (std::abs(det) == DataType(0))
         {
             throw std::runtime_error(
-                "linearSolver::Schur::condense: singular M block");
+                "linearSolver::schur::condense: singular M block");
         }
-        BlockMatrix::invert<NB>(Dblock, &sd.Minv[c * SchurData::NSq]);
+        BlockMatrix::invert<NB>(Mblock, &sd.Minv[c * SchurData::NSq]);
         BlockMatrix::matrixVector<NB>(&sd.Minv[c * SchurData::NSq],
                                       &sd.bc[c * N],
                                       &sd.MinvBc[c * N]);
@@ -180,12 +180,12 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
         {
             continue;
         }
-        const DataType* DinvBlock = &sd.Minv[c * SchurData::NSq];
-        for (const auto& [col, AscBlock] : sd.H[c])
+        const DataType* MinvBlock = &sd.Minv[c * SchurData::NSq];
+        for (const auto& [col, Hblock] : sd.H[c])
         {
             auto& dst = sd.MinvH[c][col];
-            BlockMatrix::matrixMatrix<NB>(DinvBlock,
-                                          AscBlock.data(),
+            BlockMatrix::matrixMatrix<NB>(MinvBlock,
+                                          Hblock.data(),
                                           dst.data());
         }
     }
@@ -222,15 +222,15 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
             {
                 continue;
             }
-            const auto& Acv = csEntry.second;
-            if (BlockMatrix::isZero<NB>(Acv.data()))
+            const auto& Gblock = csEntry.second;
+            if (BlockMatrix::isZero<NB>(Gblock.data()))
             {
                 continue;
             }
 
-            // RHS contribution: b += -G * MinvBc
+            // RHS contribution: b -= G * MinvBc
             DataType rhsDelta[N];
-            BlockMatrix::matrixVector<NB>(Acv.data(),
+            BlockMatrix::matrixVector<NB>(Gblock.data(),
                                           &sd.MinvBc[c * N],
                                           rhsDelta);
             for (std::size_t ic = 0; ic < N; ++ic)
@@ -238,16 +238,16 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
                 b[rowID * N + ic] -= rhsDelta[ic];
             }
 
-            // Matrix contributions per col: A[row, col] += -G * MinvH[col]
+            // Matrix contributions per col: A[row, col] -= G * MinvH[col]
             for (const auto& colEntry : sd.MinvH[c])
             {
                 const typename SchurData::GlobalNodeId colGid =
                     colEntry.first;
-                const auto& DinvHBlock = colEntry.second;
-                DataType M[SchurData::NSq];
-                BlockMatrix::matrixMatrix<NB>(Acv.data(),
-                                              DinvHBlock.data(),
-                                              M);
+                const auto& MinvHBlock = colEntry.second;
+                DataType Adelta[SchurData::NSq];
+                BlockMatrix::matrixMatrix<NB>(Gblock.data(),
+                                              MinvHBlock.data(),
+                                              Adelta);
 
                 Index colKey;
                 if (localColumnOrder)
@@ -279,15 +279,33 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
                     continue;
                 }
 
-                // Subtract M from the (offset)-th block of rowVals.
-                // No existing CRSMatrix-row-block-scatter helper, so
-                // the index arithmetic stays inline.
+                // Subtract Adelta (= G * MinvH) from the (offset)-th
+                // block of rowVals. No existing CRSMatrix-row-block-
+                // scatter helper, so the index arithmetic stays inline.
                 DataType* const blockDst =
                     &rowVals[SchurData::NSq * offset];
-                BlockMatrix::matrixSubInplace<NB>(M, blockDst);
+                BlockMatrix::matrixSubInplace<NB>(Adelta, blockDst);
             }
         }
     }
+
+    // Zero the per-pass scatter buffers (G/H/M/bc) now that they
+    // have been consumed. Per-domain preAssemble calls
+    // resizeSchurCoefficients, which is a no-op when the cs count
+    // is unchanged (see coefficients<N>::resizeSchurCoefficients);
+    // clearing here is therefore what guarantees a clean slate for
+    // the next outer iteration's scatter, independent of which
+    // domain's preAssemble fires first. Minv / MinvBc / MinvH /
+    // cActive / lambda are condense-owned caches and are
+    // intentionally NOT cleared (calculateLambda consumes them
+    // after the linear solve).
+    sd.G.clear();
+    for (auto& hSlot : sd.H)
+    {
+        hSlot.clear();
+    }
+    std::fill(sd.M.begin(), sd.M.end(), DataType(0));
+    std::fill(sd.bc.begin(), sd.bc.end(), DataType(0));
 }
 
 // COLLECTIVE on `comm` — every rank must call.
