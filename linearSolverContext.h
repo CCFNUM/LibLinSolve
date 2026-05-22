@@ -79,12 +79,11 @@ class Context
 public:
     using Coefficients = coefficients<N>;
     using Matrix = typename Coefficients::Matrix;
-    // using Vector = typename Coefficients::Vector;
+    using Vector = typename Coefficients::Vector;
     using Index = typename Coefficients::Index;
     using IndexVector = typename Coefficients::IndexVector;
     using ControlData = ::linearSolver::ControlData<N>;
     using Array = typename ControlData::Array;
-    using Vector = typename Matrix::values_type;
 
     static constexpr Index BLOCKSIZE = N;
 

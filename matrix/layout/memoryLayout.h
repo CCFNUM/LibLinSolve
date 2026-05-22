@@ -19,7 +19,7 @@ namespace matrixLayout
 template <typename Matrix>
 void blockRowToRowMajor(const typename Matrix::Index block_row_idx,
                         const Matrix& A,
-                        typename Matrix::entries_subview_type block_col_idx,
+                        typename Matrix::IndexSubview block_col_idx,
                         std::vector<typename Matrix::Index>& row_nnz,
                         std::vector<typename Matrix::Index>& row_idx,
                         std::vector<typename Matrix::Index>& col_idx,
