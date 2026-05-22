@@ -289,8 +289,9 @@ typename CRSMatrix<N>::Index CRSMatrix<N>::bandwidth() const
         // the following search would not be necessary if rowCols(i) is sorted
         // (we do it anyway to be independent of that property)
         Index j_min = std::numeric_limits<Index>::max();
-        for (const Index j : this->rowCols(i))
+        for (size_t col = 0; col < this->rowCols(i).size(); ++col)
         {
+            const Index j = this->rowCols(i)[col];
             j_min = j < j_min ? j : j_min;
         }
         const Index beta = i - j_min;
@@ -312,8 +313,9 @@ typename CRSMatrix<N>::Index CRSMatrix<N>::profile() const
         // the following search would not be necessary if rowCols(i) is sorted
         // (we do it anyway to be independent of that property)
         Index j_min = std::numeric_limits<Index>::max();
-        for (const Index j : this->rowCols(i))
+        for (size_t col = 0; col < this->rowCols(i).size(); ++col)
         {
+            const Index j = this->rowCols(i)[col];
             j_min = j < j_min ? j : j_min;
         }
         envelope += i - j_min;
