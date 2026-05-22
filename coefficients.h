@@ -27,11 +27,10 @@ class coefficients : public CRSMatrix<N>
 public:
     using Matrix = CRSMatrix<N>;
     using DataType = typename Matrix::DataType;
-    // using Vector = typename Matrix::Vector;
+    using Vector = typename Matrix::Vector;
     using Index = typename Matrix::Index;
     using IndexVector = std::vector<Index>;
     using Matrix::BLOCKSIZE;
-    using Vector = typename Matrix::values_type;
 
 private:
     using Matrix::graph_;
@@ -73,9 +72,9 @@ public:
         const Index n_local_ghosts = graph_->nGhostNodes();
 
         Kokkos::resize(this->values_, this->nnz()); // matrix coefficients
-        x_.resize(BLOCKSIZE * (n_local_coeff + n_local_ghosts));
-        b_.resize(BLOCKSIZE * n_local_coeff);
-        r_.resize(BLOCKSIZE * n_local_coeff);
+        Kokkos::resize(x_, BLOCKSIZE * (n_local_coeff + n_local_ghosts));
+        Kokkos::resize(b_, BLOCKSIZE * n_local_coeff);
+        Kokkos::resize(r_, BLOCKSIZE * n_local_coeff);
     }
 
     // clang-format off
@@ -105,17 +104,17 @@ public:
 
     void zeroRHS()
     {
-        std::fill(b_.begin(), b_.end(), 0);
+        Kokkos::deep_copy(b_, 0);
     }
 
     void zeroSOL()
     {
-        std::fill(x_.begin(), x_.end(), 0);
+        Kokkos::deep_copy(x_, 0);
     }
 
     void zeroRES()
     {
-        std::fill(r_.begin(), r_.end(), 0);
+        Kokkos::deep_copy(r_, 0);
     }
 
     Index nCoefficients() const

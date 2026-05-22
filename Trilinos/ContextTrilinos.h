@@ -452,8 +452,16 @@ private:
         auto x_view = x_vec_->get1dViewNonConst();
         auto b_view = b_vec_->get1dViewNonConst();
         const size_t n_local = static_cast<size_t>(map_->getLocalNumElements());
-        std::copy_n(x_native.begin(), n_local, x_view.begin());
-        std::copy_n(b_native.begin(), n_local, b_view.begin());
+        for (std::size_t i = 0; i < n_local; ++i)
+        {
+            x_view[i] = x_native[i];
+        }
+        for (std::size_t i = 0; i < n_local; ++i)
+        {
+            b_view[i] = b_native[i];
+        }
+        // std::copy_n(x_native.begin(), n_local, x_view.begin());
+        // std::copy_n(b_native.begin(), n_local, b_view.begin());
     }
 
     void copyStateToNative_()
@@ -461,7 +469,11 @@ private:
         auto x_view = x_vec_->get1dView();
         Vector& x_native = this->coeffs_->getXVector();
         const size_t n_local = static_cast<size_t>(map_->getLocalNumElements());
-        std::copy_n(x_view.begin(), n_local, x_native.begin());
+        // std::copy_n(x_view.begin(), n_local, x_native.begin());
+        for (std::size_t i = 0; i < n_local; ++i)
+        {
+            x_native[i] = x_view[i];
+        }
     }
 
     void copyCoefficients_()

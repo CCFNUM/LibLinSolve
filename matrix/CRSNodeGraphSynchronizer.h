@@ -74,7 +74,8 @@ public:
         recv_packs_.reserve(pack_data_.size());
     }
 
-    const PackInfo* unpack(const PackData& data, std::vector<T>& dst) const
+    template <typename Vector>
+    const PackInfo* unpack(const PackData& data, Vector& dst) const
     {
         const PackInfo* info = data.info;
 
@@ -94,7 +95,8 @@ public:
         return info;
     }
 
-    void async(const std::vector<T>& src)
+    template <typename Vector>
+    void async(const Vector& src)
     {
         if (pending_recv_.size() > 0)
         {
@@ -266,7 +268,8 @@ public:
         recv_clear_();
     }
 
-    void waitAll(std::vector<T>& dst)
+    template <typename Vector>
+    void waitAll(Vector& dst)
     {
         std::vector<const PackData*> avail;
         this->waitAll(avail);
@@ -309,7 +312,8 @@ private:
         pending_send_.clear();
     }
 
-    void pack_(PackData& data, const std::vector<T>& src)
+    template <typename Vector>
+    void pack_(PackData& data, const Vector& src)
     {
         const PackInfo* info = data.info;
 

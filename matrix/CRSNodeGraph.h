@@ -16,15 +16,7 @@
 #include <span>
 #include <vector>
 
-#include <Kokkos_Core.hpp>
-// #include <KokkosSparse_CrsMatrix.hpp>
-#include "KokkosSparse_BsrMatrix.hpp"
-
-#ifdef GRAPH_INDEX_64BIT
-typedef int64_t TGraphIndex;
-#else
-typedef int32_t TGraphIndex;
-#endif /* GRAPH_INDEX_64BIT */
+#include <linearSolverTypes.h>
 
 namespace linearSolver
 {
@@ -145,38 +137,10 @@ public:
     // Main graph index type.  This type is used to compute differences and
     // should be a signed integral.
     using Index = TGraphIndex;
+    using IndexView = ::IndexView;
+    using IndexSubview = ::IndexSubview;
 
     // DAVEKOKKOS: move accelexecspace to global
-    // DAVEKOKKOS: these also exist in crsmatrix.h, move to single definition
-#ifdef SOLVER_SINGLE_PRECISION
-    typedef float TRealSolver;
-#else
-    typedef double TRealSolver;
-#endif /* SOLVER_SINGLE_PRECISION */
-    using DataType = TRealSolver;
-
-    using AccelExecSpace = Kokkos::DefaultExecutionSpace;
-    using execution_space = AccelExecSpace;
-    using memory_space = execution_space::memory_space;
-    using device_type = Kokkos::Device<execution_space, memory_space>;
-
-    using matrix_type =
-        KokkosSparse::CrsMatrix<DataType, Index, device_type, void, Index>;
-
-    using graph_type = typename matrix_type::staticcrsgraph_type;
-    using row_map_type = typename graph_type::row_map_type;
-    using entries_type = typename graph_type::entries_type;
-    using values_type = typename matrix_type::values_type;
-
-    using range_type = Kokkos::pair<Index, Index>;
-    using row_map_subview_type = Kokkos::Subview<row_map_type, range_type>;
-    using entries_subview_type = Kokkos::Subview<entries_type, range_type>;
-    using values_subview_type = Kokkos::Subview<values_type, range_type>;
-
-    // row_map_type: view<const Index*>
-    // entries_type: view<Index*>
-    // values_type: view<DataType*>
-
     struct PackInfo
     {
         int remote_rank;
@@ -260,21 +224,21 @@ public:
     }
 
     // DAVEKOKKOS: this should be a row_map_type
-    inline const entries_type& offsets() const
+    inline const IndexView& offsets() const
     {
         assert(is_built_);
         assert(row_ptr_.size() > 1);
         return row_ptr_;
     }
 
-    inline const entries_type& indices() const
+    inline const IndexView& indices() const
     {
         assert(is_built_);
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
         return primary_indices_;
     }
 
-    inline const entries_type& diagonalIndicesOffset() const
+    inline const IndexView& diagonalIndicesOffset() const
     {
         assert(is_built_);
         assert(static_cast<Index>(diagonal_row_offset_.size()) ==
@@ -316,7 +280,7 @@ public:
         return row_nnz_owned_[i_row];
     }
 
-    inline const entries_type& nnzOwned() const
+    inline const IndexView& nnzOwned() const
     {
         assert(is_built_);
         return row_nnz_owned_;
@@ -330,7 +294,7 @@ public:
         return row_nnz_ghost_[i_row];
     }
 
-    inline const entries_type& nnzGhost() const
+    inline const IndexView& nnzGhost() const
     {
         assert(is_built_);
         return row_nnz_ghost_;
@@ -360,11 +324,11 @@ public:
         return j_global - this->global_row_offset_;
     }
 
-    const entries_type& localIndices() const;
-    const entries_type& globalIndices() const;
+    const IndexView& localIndices() const;
+    const IndexView& globalIndices() const;
 
-    entries_subview_type rowLocalIndices(const Index i_row) const;
-    entries_subview_type rowGlobalIndices(const Index i_row) const;
+    IndexSubview rowLocalIndices(const Index i_row) const;
+    IndexSubview rowGlobalIndices(const Index i_row) const;
 
     void getMemoryFootprint(MemoryFootprint& data) const;
     void serialize(std::ofstream& out) const;
@@ -382,16 +346,16 @@ protected:
 
     // CRS data structures
     // DAVEKOKKOS: row_ptr_ should be a row_map_type!!!
-    entries_type row_ptr_;           // row offsets
-    entries_type primary_indices_;   // main column index order (sorted)
-    entries_type secondary_indices_; // complement column index order
+    IndexView row_ptr_;           // row offsets
+    IndexView primary_indices_;   // main column index order (sorted)
+    IndexView secondary_indices_; // complement column index order
 
     // per row nnz
-    entries_type row_nnz_owned_; // nnz per row (owned)
-    entries_type row_nnz_ghost_; // nnz per row (total ghosts)
+    IndexView row_nnz_owned_; // nnz per row (owned)
+    IndexView row_nnz_ghost_; // nnz per row (total ghosts)
 
     // diagonal
-    entries_type diagonal_row_offset_; // index into *_indices_
+    IndexView diagonal_row_offset_; // index into *_indices_
 
     // MPI
     Index global_row_offset_;

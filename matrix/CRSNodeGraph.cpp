@@ -85,7 +85,7 @@ void CRSNodeGraph::buildGraph()
 #endif /* NDEBUG */
 }
 
-const CRSNodeGraph::entries_type& CRSNodeGraph::localIndices() const
+const CRSNodeGraph::IndexView& CRSNodeGraph::localIndices() const
 {
     if (this->isLocalColumnOrder())
     {
@@ -100,7 +100,7 @@ const CRSNodeGraph::entries_type& CRSNodeGraph::localIndices() const
     }
 }
 
-const CRSNodeGraph::entries_type& CRSNodeGraph::globalIndices() const
+const CRSNodeGraph::IndexView& CRSNodeGraph::globalIndices() const
 {
     if (this->isGlobalColumnOrder())
     {
@@ -115,7 +115,7 @@ const CRSNodeGraph::entries_type& CRSNodeGraph::globalIndices() const
     }
 }
 
-CRSNodeGraph::entries_subview_type
+CRSNodeGraph::IndexSubview
 CRSNodeGraph::rowLocalIndices(const Index i_row) const
 {
     assert(0 <= i_row);
@@ -137,7 +137,7 @@ CRSNodeGraph::rowLocalIndices(const Index i_row) const
     }
 }
 
-CRSNodeGraph::entries_subview_type
+CRSNodeGraph::IndexSubview
 CRSNodeGraph::rowGlobalIndices(const Index i_row) const
 {
     assert(0 <= i_row);
@@ -641,13 +641,13 @@ void CRSNodeGraph::resetGraph_()
     global_number_indices_ = ~0ull;
 
     // DAVEKOKKOS: should be row_map_type_
-    row_ptr_ = entries_type{};
-    primary_indices_ = entries_type{};
-    secondary_indices_ = entries_type{};
+    row_ptr_ = IndexView{};
+    primary_indices_ = IndexView{};
+    secondary_indices_ = IndexView{};
 
-    row_nnz_owned_ = entries_type{};
-    row_nnz_ghost_ = entries_type{};
-    diagonal_row_offset_ = entries_type{};
+    row_nnz_owned_ = IndexView{};
+    row_nnz_ghost_ = IndexView{};
+    diagonal_row_offset_ = IndexView{};
 
     pack_infos_.clear();
 }

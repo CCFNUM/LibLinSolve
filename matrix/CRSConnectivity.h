@@ -20,8 +20,8 @@ class CRSConnectivity
 {
 public:
     using Index = CRSNodeGraph::Index;
-    using entries_type = CRSNodeGraph::entries_type;
-    using entries_subview_type = CRSNodeGraph::entries_subview_type;
+    using IndexView = CRSNodeGraph::IndexView;
+    using IndexSubview = CRSNodeGraph::IndexSubview;
     CRSConnectivity() = delete;
 
     CRSConnectivity(const CRSNodeGraph* graph) : graph_(graph)
@@ -84,7 +84,7 @@ public:
     }
 
     // DAVEKOKKOS: should be row_map_type_!!
-    inline const entries_type& offsetsRef() const
+    inline const IndexView& offsetsRef() const
     {
         return graph_->offsets();
     }
@@ -94,7 +94,7 @@ public:
         return graph_->indices().data();
     }
 
-    inline const entries_type& indicesRef() const
+    inline const IndexView& indicesRef() const
     {
         return graph_->indices();
     }
@@ -104,12 +104,12 @@ public:
         return graph_->diagonalIndicesOffset().data();
     }
 
-    inline const entries_type& diagOffsetRef() const
+    inline const IndexView& diagOffsetRef() const
     {
         return graph_->diagonalIndicesOffset();
     }
 
-    inline entries_subview_type rowCols(Index iRow) const
+    inline IndexSubview rowCols(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());

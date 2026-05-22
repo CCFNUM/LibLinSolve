@@ -31,30 +31,9 @@ public:
     using MemoryLayout = GraphLayout;
     using Index = CRSConnectivity::Index;
     using DataType = TRealSolver;
-    using Vector = std::vector<DataType>;
+    using Vector = ScalarView;
 
     static constexpr Index BLOCKSIZE = N;
-
-    // DAVEKOKKOS: move accelexecspace to global
-    using AccelExecSpace = Kokkos::DefaultExecutionSpace;
-    using execution_space = AccelExecSpace;
-    using memory_space = execution_space::memory_space;
-    using device_type = Kokkos::Device<execution_space, memory_space>;
-
-    // using matrix_type =
-    //     KokkosSparse::CrsMatrix<DataType, Index, device_type, void, Index>;
-    using matrix_type = KokkosSparse::Experimental::
-        BsrMatrix<DataType, Index, device_type, void, Index>;
-
-    using graph_type = typename matrix_type::staticcrsgraph_type;
-    using row_map_type = typename graph_type::row_map_type;
-    using entries_type = typename graph_type::entries_type;
-    using values_type = typename matrix_type::values_type;
-
-    using range_type = Kokkos::pair<Index, Index>;
-    using row_map_subview_type = Kokkos::Subview<row_map_type, range_type>;
-    using entries_subview_type = Kokkos::Subview<entries_type, range_type>;
-    using values_subview_type = Kokkos::Subview<values_type, range_type>;
 
 private:
     template <typename T>
@@ -78,8 +57,8 @@ private:
 
 protected:
     MemoryLayout memory_layout_;
-    values_type values_; // flat values array
-    matrix_type crsmatrix_;
+    ScalarView values_; // flat values array
+    CRSMatrixType crsmatrix_;
 
 public:
     CRSMatrix() = delete;
@@ -98,8 +77,8 @@ public:
             Kokkos::deep_copy(values_, static_cast<DataType>(0));
         }
 
-        graph_type mygraph(graph->indices(), graph->offsets());
-        crsmatrix_ = matrix_type(
+        CRSGraphType mygraph(graph->indices(), graph->offsets());
+        crsmatrix_ = CRSMatrixType(
             "CRSMatrix", this->nRows(), values_, mygraph, BLOCKSIZE);
     }
 
@@ -124,17 +103,17 @@ public:
         return values_.data();
     }
 
-    inline values_type& valuesRef()
+    inline ScalarView& valuesRef()
     {
         return values_;
     }
 
-    inline const values_type& valuesRef() const
+    inline const ScalarView& valuesRef() const
     {
         return values_;
     }
 
-    inline values_subview_type rowVals(Index iRow) const
+    inline ScalarSubview rowVals(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -152,7 +131,7 @@ public:
         return crsmatrix_.block_row(iRow);
     }
 
-    inline entries_subview_type blockRowCols(Index iRow) const
+    inline IndexSubview blockRowCols(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
