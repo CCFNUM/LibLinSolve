@@ -22,8 +22,10 @@ namespace schur
 {
 
 // COLLECTIVE on `comm` — every rank must call.
-template <size_t N, typename GlobalToLocal>
-void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
+template <size_t N, typename GlobalToLocalRow, typename GlobalToColumn>
+void condense(coefficients<N>& coeffs,
+              GlobalToLocalRow&& globalToLocalRow,
+              GlobalToColumn&& globalToColumn)
 {
     using SchurData = typename coefficients<N>::SchurData;
     using DataType = typename CRSMatrix<N>::DataType;
@@ -145,6 +147,82 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
                                k];
                 }
             }
+
+            // Cross-rank merge of G (A_cv)
+            std::vector<std::uint64_t> gRow;
+            std::vector<int> gCs;
+            std::vector<DataType> gVal;
+            for (const auto& [rowGid, csMap] : sd.G)
+            {
+                for (const auto& [cs, blk] : csMap)
+                {
+                    gRow.push_back(rowGid);
+                    gCs.push_back(cs);
+                    for (std::size_t k = 0; k < SchurData::NSq; ++k)
+                    {
+                        gVal.push_back(blk[k]);
+                    }
+                }
+            }
+            const int gMine = static_cast<int>(gRow.size());
+            std::vector<int> gCounts(nproc, 0);
+            MPI_Allgather(
+                &gMine, 1, MPI_INT, gCounts.data(), 1, MPI_INT, comm);
+            std::vector<int> gDispls(nproc, 0);
+            int gTotal = 0;
+            for (int r = 0; r < nproc; ++r)
+            {
+                gDispls[r] = gTotal;
+                gTotal += gCounts[r];
+            }
+            std::vector<int> gCountsVals(nproc, 0);
+            std::vector<int> gDisplsVals(nproc, 0);
+            for (int r = 0; r < nproc; ++r)
+            {
+                gCountsVals[r] =
+                    gCounts[r] * static_cast<int>(SchurData::NSq);
+                gDisplsVals[r] =
+                    gDispls[r] * static_cast<int>(SchurData::NSq);
+            }
+            std::vector<std::uint64_t> gAllRow(gTotal);
+            std::vector<int> gAllCs(gTotal);
+            std::vector<DataType> gAllVal(
+                static_cast<std::size_t>(gTotal) * SchurData::NSq);
+            MPI_Allgatherv(gRow.data(),
+                           gMine,
+                           MPI_UINT64_T,
+                           gAllRow.data(),
+                           gCounts.data(),
+                           gDispls.data(),
+                           MPI_UINT64_T,
+                           comm);
+            MPI_Allgatherv(gCs.data(),
+                           gMine,
+                           MPI_INT,
+                           gAllCs.data(),
+                           gCounts.data(),
+                           gDispls.data(),
+                           MPI_INT,
+                           comm);
+            MPI_Allgatherv(gVal.data(),
+                           gMine * static_cast<int>(SchurData::NSq),
+                           MPI_DOUBLE,
+                           gAllVal.data(),
+                           gCountsVals.data(),
+                           gDisplsVals.data(),
+                           MPI_DOUBLE,
+                           comm);
+            sd.G.clear();
+            for (int i = 0; i < gTotal; ++i)
+            {
+                auto& dst = sd.G[gAllRow[i]][gAllCs[i]];
+                for (std::size_t k = 0; k < SchurData::NSq; ++k)
+                {
+                    dst[k] +=
+                        gAllVal[static_cast<std::size_t>(i) * SchurData::NSq +
+                                k];
+                }
+            }
         }
     }
 
@@ -194,14 +272,13 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
     sd.lambda.assign(numC * N, DataType(0));
 
     // Apply Schur correction per (mesh row i, c)
-    const bool localColumnOrder = graph.isLocalColumnOrder();
     const auto nOwnedRows = graph.nOwnedNodes();
 
     for (const auto& rowEntry : sd.G)
     {
         const typename SchurData::GlobalNodeId rowGid = rowEntry.first;
 
-        const Index rowID = globalToLocal(rowGid);
+        const Index rowID = globalToLocalRow(rowGid);
         if (rowID < 0 || rowID >= nOwnedRows)
         {
             continue;
@@ -249,19 +326,13 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
                                               MinvHBlock.data(),
                                               Adelta);
 
-                Index colKey;
-                if (localColumnOrder)
+                // Resolve the column key in the matrix's storage order.
+                // The caller maps to local id (local-column-order graphs)
+                // or renumbered global id (global-column-order graphs).
+                const Index colKey = globalToColumn(colGid);
+                if (colKey < 0)
                 {
-                    const Index colLid = globalToLocal(colGid);
-                    if (colLid < 0)
-                    {
-                        continue;
-                    }
-                    colKey = colLid;
-                }
-                else
-                {
-                    colKey = static_cast<Index>(colGid);
+                    continue;
                 }
 
                 // Walk the row to find the column offset.
@@ -290,15 +361,7 @@ void condense(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
     }
 
     // Zero the per-pass scatter buffers (G/H/M/bc) now that they
-    // have been consumed. Per-domain preAssemble calls
-    // resizeSchurCoefficients, which is a no-op when the cs count
-    // is unchanged (see coefficients<N>::resizeSchurCoefficients);
-    // clearing here is therefore what guarantees a clean slate for
-    // the next outer iteration's scatter, independent of which
-    // domain's preAssemble fires first. Minv / MinvBc / MinvH /
-    // cActive / lambda are condense-owned caches and are
-    // intentionally NOT cleared (calculateLambda consumes them
-    // after the linear solve).
+    // have been consumed.
     sd.G.clear();
     for (auto& hSlot : sd.H)
     {
