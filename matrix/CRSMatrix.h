@@ -183,6 +183,15 @@ public:
                         BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
     };
 
+    inline auto blockDiag(Index iRow) const 
+    {
+        assert(0 <= iRow);
+        assert(iRow < this->nRows());
+        auto blockRow = crsmatrix_.block_row(iRow);
+        const Index diagOffset = this->diagOffsetRef()[iRow];
+        return blockRow.block(diagOffset);
+    }
+
     // layout conversions
     MemoryLayout getMemoryLayout() const
     {
