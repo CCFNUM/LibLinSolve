@@ -109,6 +109,11 @@ public:
         return graph_->diagonalIndicesOffset();
     }
 
+    inline Index diagOffset(Index iRow) const
+    {
+        return graph_->diagonalIndicesOffset()[iRow];
+    }
+
     inline IndexSubview rowCols(Index iRow) const
     {
         assert(0 <= iRow);
