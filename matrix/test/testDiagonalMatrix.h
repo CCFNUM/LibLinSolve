@@ -161,11 +161,12 @@ private:
 
     void buildGraph_() override
     {
+        using IndexVector = std::vector<Index>;
         const Index n = this->getDimension();
 
         this->n_owned_nodes_ = n;
-        row_ptr_.resize(n + 1);
-        row_ptr_[0] = 0;
+        Kokkos::resize(row_ptr_, n + 1);
+        Kokkos::deep_copy(row_ptr_, Index{0});
         for (Index i = 0; i < n; i++)
         {
             row_ptr_[i + 1] = i + 1;
@@ -178,15 +179,24 @@ private:
             column_shift = this->global_row_offset_;
         }
 
-        primary_indices_.resize(n);
-        secondary_indices_.resize(n);
+        IndexVector primary_idx(n);
+        IndexVector secondary_idx(n);
         assert(this->nIndices() == n); // nnz == n
         for (Index i_local = 0; i_local < this->nIndices(); i_local++)
         {
             const Index i_global = i_local + this->global_row_offset_;
-            primary_indices_[i_local] = i_local + column_shift;
-            secondary_indices_[i_local] = i_global - column_shift;
+            primary_idx[i_local] = i_local + column_shift;
+            secondary_idx[i_local] = i_global - column_shift;
         }
+
+        // host only:
+        Kokkos::resize(primary_indices_, n);
+        Kokkos::resize(secondary_indices_, n);
+        std::copy(
+            primary_idx.begin(), primary_idx.end(), primary_indices_.data());
+        std::copy(secondary_idx.begin(),
+                  secondary_idx.end(),
+                  secondary_indices_.data());
     }
 
     void computePackInfos_() override

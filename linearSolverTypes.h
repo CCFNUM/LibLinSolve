@@ -1,6 +1,10 @@
 #ifndef LINEARSOLVERTYPES_H
 #define LINEARSOLVERTYPES_H
 
+#ifndef NO_LINSOLVE_CONF
+#include "Config.h"
+#endif /* NO_LINSOLVE_CONF */
+
 #include <cstdint>
 
 #ifdef GRAPH_INDEX_64BIT

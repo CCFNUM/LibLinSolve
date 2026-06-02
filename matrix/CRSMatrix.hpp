@@ -328,8 +328,9 @@ typename CRSMatrix<N>::DataType norm__frobenius(const CRSMatrix<N>* A)
 {
     using TReal = CRSMatrix<N>::DataType;
     TReal norm = 0;
-    for (const TReal a_ij : A->valuesRef())
+    for (size_t i = 0; i < A->rowCols(i).size(); ++i)
     {
+        const TReal a_ij = A->valuesRef()[i];
         norm += a_ij * a_ij;
     }
 
