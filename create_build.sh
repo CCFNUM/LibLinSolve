@@ -7,7 +7,7 @@
 
 if [ $# -lt 1 ]; then
     cat <<EOF
-USAGE: $0 <path/to/build/dir> [mpich|openmpi] [meson setup args...]
+USAGE: $0 <path/to/build/dir> [meson setup args...]
 EOF
     exit 1
 fi
@@ -18,38 +18,12 @@ if [ -d "${build_dir}" ]; then
     exit 1
 fi
 
-mpi_impl='mpich'
-case ${1} in
-    mpich) mpi_impl=mpich; shift;;
-    openmpi) mpi_impl=openmpi; shift;;
-esac
-
-mkdir -p "${build_dir}"
-cat <<EOF >"${build_dir}/build_env.sh"
-if ! command -v module &> /dev/null; then
-    source /etc/profile.d/lmod.sh
-fi
-module purge
-module load gnu12
-module load yaml-cpp
-if [ "${mpi_impl}" = 'mpich' ]; then
-    module load ucx
-    module load mpich
-    export LIBRARY_PATH=\${UCX_LIB}:\${LIBRARY_PATH}
-elif [ "${mpi_impl}" = 'openmpi' ]; then
-    module load openmpi4
-else
-    printf "Unknown MPI implementation '%s'!\n" "${mpi_impl}"
+if [ -z "${UENV_ARG}" ]; then
+    echo "UENV_ARG environment variable is empty (is a uenv loaded?)"
     exit 1
 fi
-
-module load petsc
-export PKG_CONFIG_PATH=\${PETSC_LIB}/pkgconfig:\${PKG_CONFIG_PATH}
-
-libHYPRE=\${LOCAL}/hypre_${mpi_impl}_release/lib64
-export CMAKE_MODULE_PATH=\${libHYPRE}/cmake:\${CMAKE_MODULE_PATH}
-export LD_LIBRARY_PATH=\${libHYPRE}:\${LD_LIBRARY_PATH}
+mkdir -p "${build_dir}"
+cat <<EOF >"${build_dir}/build_env.sh"
+    export BUILD_PREFIX='uenv run ${UENV_VIEW:+--view ${UENV_VIEW##*:}} ${UENV_ARG} -- '
 EOF
-
-source "${build_dir}/build_env.sh"
-meson setup "${build_dir}" -DMPI=${mpi_impl} "${@}"
+meson setup "${build_dir}" "${@}"
