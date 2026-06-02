@@ -16,7 +16,7 @@ typedef double TRealSolver;
 #ifdef USE_KOKKOS
 #include <Kokkos_Core.hpp>
 // #include <KokkosSparse_CrsMatrix.hpp>
-#include "KokkosSparse_BsrMatrix.hpp"
+#include <KokkosSparse_BsrMatrix.hpp>
 
 using AccelExecSpace = Kokkos::DefaultExecutionSpace;
 using AccelMemorySpace = AccelExecSpace::memory_space;

@@ -482,7 +482,7 @@ void CRSNodeGraph::computePackInfos_()
 void CRSNodeGraph::computeDiagonalIndices_()
 {
     assert(is_built_);
-    if (!diagonal_row_offset_.empty())
+    if (diagonal_row_offset_.size() != 0)
     {
         assert(n_owned_nodes_ ==
                static_cast<Index>(diagonal_row_offset_.size()));
@@ -518,7 +518,7 @@ void CRSNodeGraph::computeAuxiliaryData_()
 void CRSNodeGraph::computeRowNonZeros_()
 {
     assert(is_built_);
-    if (!row_nnz_owned_.empty() || !row_nnz_ghost_.empty())
+    if (row_nnz_owned_.size() != 0 || row_nnz_ghost_.size() != 0)
     {
         assert(n_owned_nodes_ == static_cast<Index>(row_nnz_owned_.size()));
         assert(row_nnz_owned_.size() == row_nnz_ghost_.size());

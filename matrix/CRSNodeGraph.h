@@ -16,7 +16,7 @@
 #include <span>
 #include <vector>
 
-#include <linearSolverTypes.h>
+#include "linearSolverTypes.h"
 
 namespace linearSolver
 {
