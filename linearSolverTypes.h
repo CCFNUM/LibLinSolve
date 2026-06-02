@@ -1,6 +1,8 @@
 #ifndef LINEARSOLVERTYPES_H
 #define LINEARSOLVERTYPES_H
 
+#include <cstdint>
+
 #ifdef GRAPH_INDEX_64BIT
 typedef int64_t TGraphIndex;
 #else
