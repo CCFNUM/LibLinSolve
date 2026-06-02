@@ -64,8 +64,8 @@ public:
         assert(a.size() == lhs_.size());
         assert(b.size() == rhs_.size());
 
-        std::copy(lhs_.begin(), lhs_.end(), a.begin());
-        std::copy(rhs_.begin(), rhs_.end(), b.begin());
+        Kokkos::deep_copy(lhs_, a);
+        Kokkos::deep_copy(rhs_, b);
     }
 
     void report(Context* ctx) override
@@ -102,8 +102,10 @@ private:
         fin.read((char*)&rhs_size, sizeof(uint64_t));
         assert(blocksize == BLOCKSIZE);
 
-        lhs_.resize(lhs_size, 0);
-        rhs_.resize(rhs_size, 0);
+        Kokkos::resize(lhs_, lhs_size);
+        Kokkos::deep_copy(lhs_, Index{0});
+        Kokkos::resize(rhs_, lhs_size);
+        Kokkos::deep_copy(rhs_, Index{0});
 
         double fp64;
         char* p64 = reinterpret_cast<char*>(&fp64);

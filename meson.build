@@ -77,6 +77,17 @@ if get_option('USE_TRILINOS')
     cpp_args += '-DHAS_TRILINOS'
   endif
 endif
+if get_option('USE_KOKKOS')
+  deps += dependency('Kokkos', method: 'cmake', modules: ['Kokkos::all_libs'], required: true)
+  if get_option('CONFIG')
+    # FIXME [faw 2026-06-02]: use HAS_KOKKOS
+    # conf.set('HAS_KOKKOS', true)
+    conf.set('USE_KOKKOS', true)
+  else
+    # cpp_args += '-DHAS_KOKKOS'
+    cpp_args += '-DUSE_KOKKOS'
+  endif
+endif
 
 src = [
   'AMGFactory.cpp',

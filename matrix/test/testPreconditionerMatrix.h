@@ -7,6 +7,7 @@
 #define TESTPRECONDITIONERMATRIX_H_ET6MOBJ0
 
 #include "blockMatrixOperators.h"
+#include "linearSolverTypes.h"
 #include "testSquareMatrix.h"
 
 #include <algorithm>
@@ -178,8 +179,8 @@ private:
                       this->comm_);
 
         this->n_owned_nodes_ = n_local;
-        row_ptr_.resize(n_local + 1);
-        row_ptr_[0] = 0;
+        Kokkos::resize(row_ptr_, n_local + 1);
+        Kokkos::deep_copy(row_ptr_, Index{0});
 
         IndexVector row_local;
         IndexVector row_global;
@@ -190,8 +191,8 @@ private:
             row_primary = &row_global;
             row_secondary = &row_local;
         }
-        primary_indices_.clear();
-        secondary_indices_.clear();
+        IndexVector primary_idx;
+        IndexVector secondary_idx;
 
         Index nnz = 0;
         Index local_idx_ghost = n_local;
@@ -232,17 +233,25 @@ private:
                     ++nnz;
                 }
             }
-            primary_indices_.insert(primary_indices_.end(),
-                                    row_primary->begin(),
-                                    row_primary->end());
-            secondary_indices_.insert(secondary_indices_.end(),
-                                      row_secondary->begin(),
-                                      row_secondary->end());
+            primary_idx.insert(
+                primary_idx.end(), row_primary->begin(), row_primary->end());
+            secondary_idx.insert(secondary_idx.end(),
+                                 row_secondary->begin(),
+                                 row_secondary->end());
 
             row_ptr_[i_local + 1] = nnz;
         }
-        assert(static_cast<Index>(primary_indices_.size()) == nnz);
-        assert(static_cast<Index>(secondary_indices_.size()) == nnz);
+        assert(static_cast<Index>(primary_idx.size()) == nnz);
+        assert(static_cast<Index>(secondary_idx.size()) == nnz);
+
+        // host only:
+        Kokkos::resize(primary_indices_, nnz);
+        Kokkos::resize(secondary_indices_, nnz);
+        std::copy(
+            primary_idx.begin(), primary_idx.end(), primary_indices_.data());
+        std::copy(secondary_idx.begin(),
+                  secondary_idx.end(),
+                  secondary_indices_.data());
 
         this->sortPrimaryIndices_();
         this->determine_n_ghosts_ = true;

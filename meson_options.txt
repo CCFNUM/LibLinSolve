@@ -39,3 +39,10 @@ option('USE_TRILINOS',
   description: 'Enable support for Trilinos Belos solver wrapper',
   yield: true
 )
+
+option('USE_KOKKOS',
+  type: 'boolean',
+  value: false,
+  description: 'Enable Kokkos data structures',
+  yield: true
+)

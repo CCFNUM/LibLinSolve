@@ -120,9 +120,6 @@ target_link_libraries(${libLinSolve} PRIVATE ${MPI_CXX_LIBRARIES})
 
 if(USE_KOKKOS)
     target_compile_definitions(${libLinSolve} PUBLIC USE_KOKKOS)
-endif()
-
-if(USE_KOKKOS)
     target_link_libraries(${libLinSolve}
         PRIVATE
         Kokkos::kokkos
