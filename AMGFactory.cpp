@@ -8,6 +8,21 @@
 #include <cassert>
 
 #ifdef LIBLINSOLVE_STATIC
+#ifdef USE_AMG_STUBS
+#include <stdexcept>
+
+static void* _stub(const size_t,
+                   const YAML::Node&,
+                   linearSolver::GraphLayout&,
+                   const YAML::Node*)
+{
+    throw std::runtime_error("This liblinsolve build does not support libAMG");
+    return nullptr;
+}
+linearSolver::AMGFactory getAMGSolverInstance = _stub;
+linearSolver::AMGFactory getGMRESSolverInstance = _stub;
+linearSolver::AMGFactory getDirectSolverInstance = _stub;
+#else
 #ifdef __cplusplus
 extern "C"
 {
