@@ -187,5 +187,9 @@ if(WITH_AMGSOLVER AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/libamg")
     endif()
 endif()
 
+if(NOT WITH_AMGSOLVER AND NOT BUILD_SHARED_LIBS)
+    target_compile_definitions(${libLinSolve} PRIVATE USE_AMG_STUBS)
+endif()
+
 set(libLinSolve ${libLinSolve} PARENT_SCOPE)
 set(libLinSolve_INC ${libLinSolveIncludes} PARENT_SCOPE)

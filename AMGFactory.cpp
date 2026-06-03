@@ -8,9 +8,43 @@
 #include <cassert>
 
 #ifdef LIBLINSOLVE_STATIC
+#ifdef USE_AMG_STUBS
+#include <stdexcept>
+
+void* getAMGSolverInstance(const size_t,
+                           const YAML::Node&,
+                           linearSolver::GraphLayout&,
+                           const YAML::Node*)
+{
+    throw std::runtime_error(
+        "This liblinsolve build does not support `getAMGSolverInstance`");
+    return nullptr;
+}
+
+void* getGMRESSolverInstance(const size_t,
+                             const YAML::Node&,
+                             linearSolver::GraphLayout&,
+                             const YAML::Node*)
+{
+    throw std::runtime_error(
+        "This liblinsolve build does not support `getGMRESSolverInstance`");
+    return nullptr;
+}
+
+void* getDirectSolverInstance(const size_t,
+                              const YAML::Node&,
+                              linearSolver::GraphLayout&,
+                              const YAML::Node*)
+{
+    throw std::runtime_error(
+        "This liblinsolve build does not support `getDirectSolverInstance`");
+    return nullptr;
+}
+#else
 extern linearSolver::AMGFactory getAMGSolverInstance;
 extern linearSolver::AMGFactory getGMRESSolverInstance;
 extern linearSolver::AMGFactory getDirectSolverInstance;
+#endif /* USE_AMG_STUBS */
 #define SYMBOL(x) (x)
 #else
 #include <dlfcn.h>
