@@ -10,10 +10,13 @@ set(CMAKE_CXX_STANDARD 20)
 
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
-if(WITH_GPU)
-    message(STATUS "Enabling GPU support")
+if(WITH_CUDA)
+    message(STATUS "Enabling CUDA support")
     set(USE_KOKKOS ON)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+elseif(WITH_OPENMP)
+    message(STATUS "Enabling OpenMP support")
+    set(USE_KOKKOS ON)
 endif()
 
 add_compile_options(
@@ -21,7 +24,6 @@ add_compile_options(
     -Wextra
     -pedantic
 )
-
 
 # the following region is special, do not remove the marker comments below
 # %GIT_TAG%
@@ -55,6 +57,13 @@ if(USE_KOKKOS)
     message(STATUS "Enabling Kokkos support")
     find_package(Kokkos REQUIRED)
     find_package(KokkosKernels REQUIRED)
+endif()
+
+if(WITH_CUDA AND NOT Kokkos_ENABLE_CUDA)
+    message(FATAL_ERROR "Kokkos does not support CUDA")
+endif()
+if(WITH_OPENMP AND NOT Kokkos_ENABLE_OPENMP)
+    message(FATAL_ERROR "Kokkos does not support OpenMP")
 endif()
 
 # Optional Trilinos linear solver support
