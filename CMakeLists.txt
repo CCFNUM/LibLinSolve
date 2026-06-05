@@ -147,7 +147,7 @@ if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
         Ifpack2::all_libs
         Tpetra::all_libs
     )
-    if(WITH_GPU)
+    if(WITH_CUDA)
         target_link_options(${libLinSolve} PUBLIC -Wl,--allow-multiple-definition)
     endif()
 endif()
