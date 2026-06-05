@@ -19,7 +19,7 @@ typedef float TRealSolver;
 typedef double TRealSolver;
 #endif /* SOLVER_SINGLE_PRECISION */
 
-#ifdef USE_KOKKOS
+#ifdef HAS_KOKKOS
 #include <Kokkos_Core.hpp>
 // #include <KokkosSparse_CrsMatrix.hpp>
 #include <KokkosSparse_BsrMatrix.hpp>
@@ -51,8 +51,8 @@ using ScalarSubview = Kokkos::Subview<ScalarView, RangeType>;
 // ScalarSubview: view<DataType*>
 #else
 
-NOT_SUPPORTED
+// nop
 
-#endif // USE_KOKKOS
+#endif // HAS_KOKKOS
 
 #endif // LINEARSOLVERTYPES_H
