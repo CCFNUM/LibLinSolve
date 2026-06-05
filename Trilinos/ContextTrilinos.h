@@ -88,35 +88,30 @@ template <size_t N>
 class ContextTrilinos : public Context<N>
 {
 public:
-    using typename Context<N>::Coefficients;
+    using Coefficients = typename Context<N>::Coefficients;
     using Matrix = typename Coefficients::Matrix;
     using Vector = typename Coefficients::Vector;
     using Index = typename Coefficients::Index;
+    using DataType = typename Matrix::DataType;
 
-    using scalar_type = double;
-    using local_ordinal_type = int;
-    using global_ordinal_type = long;
-    using node_type = Tpetra::Map<>::node_type;
-    using map_type =
-        Tpetra::Map<local_ordinal_type, global_ordinal_type, node_type>;
-    using matrix_type = Tpetra::CrsMatrix<scalar_type,
-                                          local_ordinal_type,
-                                          global_ordinal_type,
-                                          node_type>;
-    using vector_type = Tpetra::
-        Vector<scalar_type, local_ordinal_type, global_ordinal_type, node_type>;
-    using multivector_type = Tpetra::MultiVector<scalar_type,
-                                                 local_ordinal_type,
-                                                 global_ordinal_type,
-                                                 node_type>;
-    using operator_type = Tpetra::Operator<scalar_type,
-                                           local_ordinal_type,
-                                           global_ordinal_type,
-                                           node_type>;
-    using prec_type = Ifpack2::Preconditioner<scalar_type,
-                                              local_ordinal_type,
-                                              global_ordinal_type,
-                                              node_type>;
+    // Trilinos specific types
+    struct Trilinos
+    {
+        using LOrdinal = int;  // Tpetra local ordinal type
+        using GOrdinal = long; // Tpetra local ordinal type
+        using Node = Tpetra::Map<>::node_type;
+        using Map = Tpetra::Map<LOrdinal, GOrdinal, Node>;
+
+        using OP = Tpetra::Operator<DataType, LOrdinal, GOrdinal, Node>;
+        using PC = Ifpack2::Preconditioner<DataType, LOrdinal, GOrdinal, Node>;
+        using Matrix = Tpetra::CrsMatrix<DataType, LOrdinal, GOrdinal, Node>;
+        using Vector = Tpetra::Vector<DataType, LOrdinal, GOrdinal, Node>;
+        using MVector = Tpetra::MultiVector<DataType, LOrdinal, GOrdinal, Node>;
+        using Problem = Belos::LinearProblem<DataType, MVector, OP>;
+        using Solver = Belos::SolverManager<DataType, MVector, OP>;
+        using SolverFactory = Belos::SolverFactory<DataType, MVector, OP>;
+        using PCFactory = Ifpack2::Factory;
+    };
 
     ContextTrilinos(const std::string& family,
                     const std::string& system_name,
@@ -175,12 +170,10 @@ public:
 
     int solve()
     {
-        using BelosProblem =
-            Belos::LinearProblem<scalar_type, multivector_type, operator_type>;
         if (belos_problem_.is_null())
         {
-            belos_problem_ =
-                Teuchos::rcp(new BelosProblem(matrix_, x_vec_, b_vec_));
+            belos_problem_ = Teuchos::rcp(
+                new typename Trilinos::Problem(matrix_, x_vec_, b_vec_));
         }
         belos_problem_->setProblem();
         if (use_preconditioner_ && !preconditioner_.is_null())
@@ -218,19 +211,18 @@ protected:
 
 private:
     Teuchos::RCP<const Teuchos::Comm<int>> comm_;
-    Teuchos::RCP<const map_type> map_;
-    Teuchos::RCP<matrix_type> matrix_;
-    Teuchos::RCP<vector_type> x_vec_;
-    Teuchos::RCP<vector_type> b_vec_;
-    Teuchos::RCP<prec_type> preconditioner_;
-    Teuchos::RCP<
-        Belos::LinearProblem<scalar_type, multivector_type, operator_type>>
-        belos_problem_;
-    Teuchos::RCP<
-        Belos::SolverManager<scalar_type, multivector_type, operator_type>>
-        belos_solver_;
+
+    Teuchos::RCP<const typename Trilinos::Map> map_;
+    Teuchos::RCP<typename Trilinos::Matrix> matrix_;
+    Teuchos::RCP<typename Trilinos::Vector> x_vec_;
+    Teuchos::RCP<typename Trilinos::Vector> b_vec_;
+    Teuchos::RCP<typename Trilinos::PC> preconditioner_;
+    Teuchos::RCP<typename Trilinos::Problem> belos_problem_;
+    Teuchos::RCP<typename Trilinos::Solver> belos_solver_;
+
     Teuchos::RCP<Teuchos::ParameterList> belos_params_;
     Teuchos::ParameterList preconditioner_params_;
+
     bool matrix_initialized_;
     bool use_preconditioner_;
     bool preconditioner_initialized_;
@@ -332,16 +324,17 @@ private:
     {
         const Matrix& A = this->getAMatrix();
         const Index n_local = A.nRows();
-        Teuchos::Array<global_ordinal_type> gids(n_local * N);
+        Teuchos::Array<typename Trilinos::GOrdinal> gids(n_local * N);
         for (Index i = 0; i < n_local; ++i)
         {
             const Index gid = A.localToGlobal(i);
-            for (Index k = 0; k < N; ++k)
+            for (Index k = 0; k < static_cast<Index>(N); ++k)
             {
-                gids[i * N + k] = static_cast<global_ordinal_type>(gid * N + k);
+                gids[i * N + k] =
+                    static_cast<typename Trilinos::GOrdinal>(gid * N + k);
             }
         }
-        map_ = Teuchos::rcp(new map_type(
+        map_ = Teuchos::rcp(new typename Trilinos::Map(
             Teuchos::OrdinalTraits<Tpetra::global_size_t>::invalid(),
             gids(),
             0,
@@ -363,20 +356,21 @@ private:
             const size_t block_nnz = A.getGraph().rowGlobalIndices(i).size();
             // Each scalar row within this block row has block_nnz * N entries
             const size_t scalar_nnz = block_nnz * N;
-            for (Index k = 0; k < N; ++k)
+            for (Index k = 0; k < static_cast<Index>(N); ++k)
             {
                 nnz_per_row[i * N + k] = scalar_nnz;
             }
         }
 
-        matrix_ = Teuchos::rcp(new matrix_type(map_, nnz_per_row()));
+        matrix_ =
+            Teuchos::rcp(new typename Trilinos::Matrix(map_, nnz_per_row()));
         matrix_initialized_ = false;
     }
 
     void buildVectors_()
     {
-        x_vec_ = Teuchos::rcp(new vector_type(map_));
-        b_vec_ = Teuchos::rcp(new vector_type(map_));
+        x_vec_ = Teuchos::rcp(new typename Trilinos::Vector(map_));
+        b_vec_ = Teuchos::rcp(new typename Trilinos::Vector(map_));
     }
 
     void destroySystem_()
@@ -394,17 +388,17 @@ private:
 
     void createBelosSolver_()
     {
-        Belos::SolverFactory<scalar_type, multivector_type, operator_type>
-            factory;
+        typename Trilinos::SolverFactory factory;
         belos_solver_ = factory.create(belos_solver_name_, belos_params_);
     }
 
     void createPreconditioner_()
     {
-        Ifpack2::Factory factory;
+        typename Trilinos::PCFactory factory;
         const std::string factory_name =
             preconditioner_type_.empty() ? "RELAXATION" : preconditioner_type_;
-        preconditioner_ = factory.create<matrix_type>(factory_name, matrix_);
+        preconditioner_ = factory.template create<typename Trilinos::Matrix>(
+            factory_name, matrix_);
         preconditioner_->setParameters(preconditioner_params_);
         preconditioner_initialized_ = false;
     }
@@ -482,7 +476,7 @@ private:
         std::vector<Index> row_nnz;
         std::vector<Index> row_idx;
         std::vector<Index> col_idx;
-        std::vector<typename Matrix::DataType> values;
+        std::vector<DataType> values;
         const Index n_rows = A.nRows();
 
         // Resume fill mode if matrix was previously finalized
@@ -492,25 +486,25 @@ private:
             matrix_->resumeFill();
         }
 
+        using GOrdinal = typename Trilinos::GOrdinal;
         for (Index i = 0; i < n_rows; ++i)
         {
             const auto cols = A.getGraph().rowGlobalIndices(i);
             matrixLayout::blockRowToRowMajor(
                 i, A, cols, row_nnz, row_idx, col_idx, values);
             const Index block_nnz = row_nnz.front();
-            std::vector<global_ordinal_type> column_ids(block_nnz);
-            for (Index k = 0; k < N; ++k)
+            std::vector<GOrdinal> column_ids(block_nnz);
+            for (Index k = 0; k < static_cast<Index>(N); ++k)
             {
-                const global_ordinal_type row =
-                    static_cast<global_ordinal_type>(row_idx[k]);
+                const GOrdinal row = static_cast<GOrdinal>(row_idx[k]);
                 for (Index j = 0; j < block_nnz; ++j)
                 {
-                    column_ids[j] = static_cast<global_ordinal_type>(
-                        col_idx[k * block_nnz + j]);
+                    column_ids[j] =
+                        static_cast<GOrdinal>(col_idx[k * block_nnz + j]);
                 }
-                Teuchos::ArrayView<const global_ordinal_type> column_view(
+                Teuchos::ArrayView<const GOrdinal> column_view(
                     column_ids.data(), static_cast<int>(block_nnz));
-                Teuchos::ArrayView<const scalar_type> value_view(
+                Teuchos::ArrayView<const DataType> value_view(
                     &values[k * block_nnz], static_cast<int>(block_nnz));
                 if (!matrix_initialized_)
                 {
