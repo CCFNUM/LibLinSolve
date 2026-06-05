@@ -16,7 +16,6 @@
 #include <Ifpack2_Factory.hpp>
 #include <Teuchos_Array.hpp>
 #include <Teuchos_DefaultMpiComm.hpp>
-#include <Teuchos_DefaultSerialComm.hpp>
 #include <Teuchos_OpaqueWrapper.hpp>
 #include <Teuchos_OrdinalTraits.hpp>
 #include <Teuchos_ParameterList.hpp>
@@ -40,11 +39,10 @@ namespace details
 {
 inline std::string toLower(std::string value)
 {
-    std::transform(value.begin(),
-                   value.end(),
-                   value.begin(),
-                   [](unsigned char c)
-                   { return static_cast<char>(std::tolower(c)); });
+    std::transform(
+        value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
     return value;
 }
 
@@ -94,6 +92,7 @@ public:
     using Index = typename Coefficients::Index;
     using DataType = typename Matrix::DataType;
 
+private:
     // Trilinos specific types
     struct Trilinos
     {
@@ -113,6 +112,7 @@ public:
         using PCFactory = Ifpack2::Factory;
     };
 
+public:
     ContextTrilinos(const std::string& family,
                     const std::string& system_name,
                     const CRSNodeGraph* graph,
@@ -152,9 +152,14 @@ public:
 
     void solvePrologue(const int solver_id, const bool preconditioner) override
     {
-        copyCoefficients_();
-        copyStateToTpetra_();
+        copyLocalToTpetra_();
         Context<N>::solvePrologue(solver_id, preconditioner);
+    }
+
+    void solveEpilogue(const int solver_id, const bool preconditioner) override
+    {
+        copyTpetraToLocal_();
+        Context<N>::solveEpilogue(solver_id, preconditioner);
     }
 
     std::string info(std::ostream& os,
@@ -191,7 +196,6 @@ public:
         }
         belos_solver_->setProblem(belos_problem_);
         const Belos::ReturnType result = belos_solver_->solve();
-        copyStateToNative_();
 
         if (result != Belos::Converged && this->verbose() > 0 &&
             this->commRank() == 0)
@@ -311,12 +315,8 @@ private:
     {
         if (comm_.is_null())
         {
-#ifdef HAVE_MPI
             auto raw = Teuchos::opaqueWrapper(this->getCommunicator());
             comm_ = Teuchos::rcp(new Teuchos::MpiComm<int>(raw));
-#else
-            comm_ = Teuchos::rcp(new Teuchos::SerialComm<int>());
-#endif
         }
     }
 
@@ -348,7 +348,8 @@ private:
         const Matrix& A = this->getAMatrix();
         const Index n_local = A.nRows();
 
-        // Create array of nnz per scalar row (each block row becomes N scalar rows)
+        // Create array of nnz per scalar row (each block row becomes N scalar
+        // rows)
         Teuchos::ArrayRCP<size_t> nnz_per_row(n_local * N);
         for (Index i = 0; i < n_local; ++i)
         {
@@ -439,8 +440,10 @@ private:
         preconditioner_params_.set(key, scalar);
     }
 
-    void copyStateToTpetra_()
+    void copyLocalToTpetra_()
     {
+        copyMatrixToTpetra_();
+
         Vector& x_native = this->coeffs_->getXVector();
         Vector& b_native = this->coeffs_->getBVector();
         auto x_view = x_vec_->get1dViewNonConst();
@@ -458,7 +461,7 @@ private:
         // std::copy_n(b_native.begin(), n_local, b_view.begin());
     }
 
-    void copyStateToNative_()
+    void copyTpetraToLocal_()
     {
         auto x_view = x_vec_->get1dView();
         Vector& x_native = this->coeffs_->getXVector();
@@ -470,7 +473,7 @@ private:
         }
     }
 
-    void copyCoefficients_()
+    void copyMatrixToTpetra_()
     {
         const Matrix& A = this->getAMatrix();
         std::vector<Index> row_nnz;
@@ -480,7 +483,8 @@ private:
         const Index n_rows = A.nRows();
 
         // Resume fill mode if matrix was previously finalized
-        // After resumeFill(), only replaceGlobalValues() is allowed (not insert)
+        // After resumeFill(), only replaceGlobalValues() is allowed (not
+        // insert)
         if (matrix_initialized_)
         {
             matrix_->resumeFill();
@@ -512,14 +516,16 @@ private:
                 }
                 else
                 {
-                    // After resumeFill(), we can only replace values in existing positions
+                    // After resumeFill(), we can only replace values in
+                    // existing positions
                     matrix_->replaceGlobalValues(row, column_view, value_view);
                 }
             }
         }
 
         // Always call fillComplete after modifying values
-        // Use explicit domain and range maps for consistency across multiple calls
+        // Use explicit domain and range maps for consistency across multiple
+        // calls
         matrix_->fillComplete(map_, map_);
 
         if (!matrix_initialized_)
