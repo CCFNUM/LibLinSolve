@@ -1,26 +1,28 @@
 solver: trilinos
 # solver: petsc
+# solver: hypre_mgr
+# solver: hypre
 # solver: gmres
 # solver: amgsolver
 matrix:
-    type: diagonal
-    # type: preconditioner
+    # type: diagonal
+    type: preconditioner
     # type: fromfile
     # filename: flow_system.bin
-    n: 250
+    n: 1000
     # random: true
     # off_diag_dominance: 1.001
     blk_ii: 1
     # blk_ii: 1
-    blk_ij: 0
-    # off_diagonal: 5
+    blk_ij: 1.01
+    off_diagonal: 5
 
 solver_lookup:
     gmres:
         family: GMRES
         min_iterations: 3
         max_iterations: 10
-        rtol: 1.0e-9
+        rtol: 1.0e-09
         atol: 1.0e-16
         verbose: 2
         options:
@@ -36,7 +38,7 @@ solver_lookup:
         min_iterations: 3
         max_iterations: 20
         # rtol: 1.0e-15
-        rtol: 1.0e-1
+        rtol: 1.0e-01
         atol: 1.0e-15
         verbose: 1
         options:
@@ -75,15 +77,16 @@ solver_lookup:
     trilinos:
         family: Trilinos
         min_iterations: 3
-        max_iterations: 50
-        rtol: 1.0e-9
-        atol: 1.0e-16
+        max_iterations: 100
+        rtol: 1.0e-09
+        atol: 1.0e-20
         options:
             belos_solver: gmres
             preconditioner: ilu
 
     petsc:
         family: PETSc
+        min_iterations: 3
         max_iterations: 1000
         rtol: 1.0e-09
         atol: 1.0e-20
@@ -95,30 +98,32 @@ solver_lookup:
 
     hypre:
         family: HYPRE
-        max_iterations: 10
+        min_iterations: 3
+        max_iterations: 100
         rtol: 1.0e-09
         atol: 1.0e-20
         options:
             solver:
               type: FlexGMRES
-            # precond:
-            #   type: BoomerAMG
-            #   numRelaxSweeps: 3
-            #   relaxType: 0
-            #   strongThreshold: 0.7
-            #   aggNumLevels: 2
-            #   maxIter: 1
-            #   cycleType: 1
-            #   printlevel: 0
-            #   coarsenType: 0
-            #   tol: 1.0e-16
-            #   # numPaths: 2
-            #   # nodal: 1
-            #   # numFunctions: 4
+            precond:
+              type: BoomerAMG
+              numRelaxSweeps: 3
+              relaxType: 0
+              strongThreshold: 0.7
+              aggNumLevels: 2
+              maxIter: 1
+              cycleType: 1
+              printlevel: 0
+              coarsenType: 0
+              tol: 1.0e-1
+              # numPaths: 2
+              # nodal: 1
+              # numFunctions: 4
 
     hypre_mgr:
         family: HYPRE
-        max_iterations: 10
+        min_iterations: 3
+        max_iterations: 50
         rtol: 1.0e-09
         atol: 1.0e-20
         options:
