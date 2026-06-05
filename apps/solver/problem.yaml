@@ -1,5 +1,6 @@
+solver: trilinos
 # solver: petsc
-solver: gmres
+# solver: gmres
 # solver: amgsolver
 matrix:
     type: diagonal
@@ -70,6 +71,16 @@ solver_lookup:
             min_cv_agglomeration: 5
             max_cv_agglomeration: 9
             verbose: 0
+
+    trilinos:
+        family: Trilinos
+        min_iterations: 3
+        max_iterations: 50
+        rtol: 1.0e-9
+        atol: 1.0e-16
+        options:
+            belos_solver: gmres
+            preconditioner: ilu
 
     petsc:
         family: PETSc

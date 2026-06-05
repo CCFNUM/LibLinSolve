@@ -7,6 +7,7 @@
 #include <AMGFactory.h>
 #include <HYPRESolver.h>
 #include <PETScSolver.h>
+#include <TrilinosSolver.h>
 #include <test/testDiagonalMatrix.h>
 #include <test/testMatrixFromFile.h>
 #include <test/testPreconditionerMatrix.h>
@@ -18,7 +19,12 @@
 #include <linearSolver.h>
 #include <mpi.h>
 #include <string>
+#include <vector>
 #include <yaml-cpp/yaml.h>
+
+#ifdef HAS_KOKKOS
+#include <Kokkos_Core.hpp>
+#endif /* HAS_KOKKOS */
 #ifdef HAS_PETSC
 #include <petscsys.h>
 #if PETSC_VERSION_LT(3, 18, 1)
@@ -71,6 +77,13 @@ template <size_t BLOCKSIZE>
         layout = ::linearSolver::GraphLayout::ColumnIndexOrder__Global;
 #endif /* HAS_HYPRE */
     }
+    else if (family_type == "trilinos")
+    {
+#ifdef HAS_TRILINOS
+        solver = new ::linearSolver::Trilinos<BLOCKSIZE>(solver_conf);
+        layout = ::linearSolver::GraphLayout::ColumnIndexOrder__Global;
+#endif /* HAS_TRILINOS */
+    }
     else if (family_type == "amgsolver")
     {
         AMGFactory f = ::linearSolver::getAMGFactory(AMGFactoryType::AMG);
@@ -119,6 +132,40 @@ newMatrix(const YAML::Node& config, ::linearSolver::GraphLayout& layout)
     }
 }
 
+#ifdef HAS_KOKKOS
+#define N_KOKKOS_DEFAULT_ARGS 2
+static const char* kokkos_default_args[N_KOKKOS_DEFAULT_ARGS] = {
+    "--kokkos-disable-warnings=true",
+    "--kokkos-print-configuration=false"};
+
+void initializeKokkosWithDefaults(int& argc,
+                                  char** argv,
+                                  const char* kokkos_default_args[])
+{
+    int kargc = argc + N_KOKKOS_DEFAULT_ARGS;
+    std::vector<char*> kargv(kargc);
+    kargv[0] = argv[0];
+    int k = 1;
+    for (int i = 0; i < N_KOKKOS_DEFAULT_ARGS; i++)
+    {
+        kargv[i + k] = const_cast<char*>(kokkos_default_args[i]);
+    }
+    k = N_KOKKOS_DEFAULT_ARGS;
+    for (int i = 1; i < argc; i++)
+    {
+        kargv[i + k] = argv[i];
+    }
+
+    Kokkos::initialize(kargc, kargv.data());
+
+    argc = kargc;
+    for (int i = 0; i < argc; i++)
+    {
+        argv[i] = kargv[i];
+    }
+}
+#endif /* HAS_KOKKOS */
+
 int main(int argc, char* argv[])
 {
     static constexpr size_t BLOCKSIZE = BS;
@@ -127,6 +174,10 @@ int main(int argc, char* argv[])
     using Matrix = ::linearSolver::testSquareMatrix<BLOCKSIZE>;
 
     MPI_Init(&argc, &argv);
+
+#ifdef HAS_KOKKOS
+    initializeKokkosWithDefaults(argc, argv, kokkos_default_args);
+#endif /* HAS_KOKKOS */
 #ifdef HAS_PETSC
     // Initialize the Petsc environment
     ErrorWrapPetscCall(PetscInitialize(&argc, &argv, NULL, NULL));
@@ -180,6 +231,10 @@ int main(int argc, char* argv[])
     // Finalize the Petsc environment.
     ErrorWrapPetscCall(PetscFinalize());
 #endif /* HAS_PETSC */
+#ifdef HAS_KOKKOS
+    Kokkos::finalize();
+#endif /* HAS_KOKKOS */
+
     MPI_Finalize();
 
     return 0;
