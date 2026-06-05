@@ -10,6 +10,12 @@ set(CMAKE_CXX_STANDARD 20)
 
 option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
+if(WITH_GPU)
+    message(STATUS "Enabling GPU support")
+    set(USE_KOKKOS ON)
+    set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+endif()
+
 add_compile_options(
     -Wall
     -Wextra
@@ -111,32 +117,30 @@ set_target_properties(${libLinSolve}
     BUILD_RPATH "${CMAKE_CURRENT_BINARY_DIR}/libamg"
 )
 target_include_directories(${libLinSolve}
-    PRIVATE
-    ${MPI_INCLUDE_PATH}
+    PUBLIC
     ${libLinSolveIncludes}
 )
 
-target_link_libraries(${libLinSolve} PRIVATE ${MPI_CXX_LIBRARIES})
+target_link_libraries(${libLinSolve} PUBLIC MPI::all_libs)
 
 if(USE_KOKKOS)
     target_compile_definitions(${libLinSolve} PUBLIC USE_KOKKOS)
     target_link_libraries(${libLinSolve}
-        PRIVATE
+        PUBLIC
         Kokkos::kokkos
         KokkosKernels::kokkoskernels
     )
 endif()
 
 if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
-    target_include_directories(${libLinSolve}
-        PRIVATE
-        ${Trilinos_INCLUDE_DIRS}
-        ${Trilinos_TPL_INCLUDE_DIRS}
+    target_link_libraries(${libLinSolve} PUBLIC
+        Belos::all_libs
+        Ifpack2::all_libs
+        Tpetra::all_libs
     )
-    target_link_libraries(${libLinSolve} PRIVATE
-        ${Trilinos_LIBRARIES}
-        ${Trilinos_TPL_LIBRARIES}
-    )
+    if(WITH_GPU)
+        target_link_options(${libLinSolve} PUBLIC -Wl,--allow-multiple-definition)
+    endif()
 endif()
 
 install(TARGETS ${libLinSolve} DESTINATION lib64)
