@@ -18,12 +18,14 @@ if [ -d "${build_dir}" ]; then
     exit 1
 fi
 
-if [ -z "${UENV_ARG}" ]; then
-    echo "UENV_ARG environment variable is empty (is a uenv loaded?)"
+if [ -z "${UENV_MOUNT_LIST}" ] && [ -z "${UENV_VIEW}" ]; then
+    echo "No uenv loaded..."
     exit 1
 fi
 mkdir -p "${build_dir}"
 cat <<EOF >"${build_dir}/build_env.sh"
-    export BUILD_PREFIX='uenv run ${UENV_VIEW:+--view ${UENV_VIEW##*:}} ${UENV_ARG} -- '
+if [ -z "\${UENV_MOUNT_LIST}" ] && [ -z "\${UENV_VIEW}" ]; then
+    export BUILD_PREFIX='uenv run ${UENV_VIEW:+--view ${UENV_VIEW##*:}} ${UENV_LABEL:-$UENV_ARG} -- '
+fi
 EOF
 meson setup "${build_dir}" "${@}"
