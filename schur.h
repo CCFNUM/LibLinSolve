@@ -1,7 +1,7 @@
 // File       : schur.h
 // Created    : Tue May 19 2026
 // Author     : Mhamad Mahdi Alloush
-// Description: GGI constrained-mortar schur-complement operations
+// Description: Schur-complement operations
 // Copyright 2026 CCFNUM HSLU T&A. All Rights Reserved.
 #ifndef SCHUR_H_LWS3K2MX
 #define SCHUR_H_LWS3K2MX
