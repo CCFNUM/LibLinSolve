@@ -91,6 +91,7 @@ set(libLinSolveIncludes
     "${CMAKE_CURRENT_LIST_DIR}/matrix/layout"
     "${CMAKE_CURRENT_LIST_DIR}/matrix/operators/blockMatrix"
     "${CMAKE_CURRENT_LIST_DIR}/matrix/operators/distributed"
+    "${CMAKE_CURRENT_LIST_DIR}/matrix/operators/scaling"
     "${CMAKE_CURRENT_LIST_DIR}/utils"
 )
 
@@ -156,10 +157,13 @@ install(FILES
   "matrix/layout/memoryLayout.h"
   "matrix/operators/blockMatrix/blockMatrixDeterminant.hpp"
   "matrix/operators/blockMatrix/blockMatrixInvert.hpp"
+  "matrix/operators/blockMatrix/blockMatrixIsZero.hpp"
   "matrix/operators/blockMatrix/blockMatrixOperators.h"
   "matrix/operators/distributed/CRSMatrixVector.h"
   "matrix/operators/distributed/CRSResidual.h"
+  "matrix/operators/scaling/scaling.h"
   "residual.h"
+  "schur.h"
   "utils/Common.h"
   "utils/Profiler.h"
   DESTINATION include

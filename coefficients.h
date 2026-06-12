@@ -8,13 +8,16 @@
 
 #include "CRSMatrix.h"
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <fstream>
+#include <map>
 #include <memory>
 #include <mpi.h>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -142,6 +145,110 @@ public:
         return LU_data_;
     }
 
+    // Schur-complement augmented constrained system:
+    //
+    //     A*x + G*lambda = b
+    //     H*x + M*lambda = bc
+    //
+    // with block form:
+    //
+    //     [ A  G ] [ x      ] = [ b  ]
+    //     [ H  M ] [ lambda ]   [ bc ]
+    //
+    // where:
+    //
+    //   A, b   : original system matrix and right-hand-side, respectively.
+    //            The original problem is not assumed to be singular or
+    //            underdetermined; the augmented system represents an additional
+    //            constrained problem built on top of A*x = b.
+    //
+    //   x      : original/primal degrees of freedom.
+    //
+    //   lambda : constraint multiplier degrees of freedom. These are auxiliary
+    //            unknowns introduced to impose the constraint equations.
+    //
+    //   G      : multiplier-to-primal coupling block. It contributes lambda
+    //            sensitivities/corrections to the original x-equations; i.e.
+    //            rows associated with x and columns associated with lambda.
+    //
+    //   H      : primal-to-constraint coupling block. It contributes x
+    //            sensitivities to the constraint equations; i.e. rows associated
+    //            with constraints and columns associated with x.
+    //
+    //   M      : multiplier-to-constraint block. It couples lambda DOFs to the
+    //            constraint equations.
+    //
+    //   bc     : right-hand-side/residual vector of the constraint equations.
+    //
+    // Eliminating lambda gives the Schur-condensed system:
+    //
+    //     (A - G*M^{-1}*H)*x = b - G*M^{-1}*bc
+    //
+    // Therefore, Schur condensation modifies the original A and b so that the
+    // solved system includes the effect of the imposed constraints without
+    // keeping lambda as an active unknown in the final linear solve.
+    struct SchurData
+    {
+        static constexpr Index NSq = N * N;
+        using Block = std::array<DataType, NSq>;
+
+        std::map<Index, std::map<Index, Block>> G;
+        std::vector<std::map<Index, Block>> H;
+        Vector M;     // numC * NSq
+        Vector bc;    // numC * N
+
+        Vector Minv;
+        Vector MinvBc;
+        std::vector<std::map<Index, Block>> MinvH;
+        std::vector<char> cActive;
+        Vector lambda; // numC * N
+
+        // Block-level writers
+        Block& GBlock(const Index row, const Index c)
+        {
+            return G[row][c];
+        }
+
+        Block& HBlock(const Index c, const Index col)
+        {
+            assert(c >= 0 && static_cast<size_t>(c) < H.size());
+            return H[c][col];
+        }
+
+        DataType* MBlock(const Index c)
+        {
+            assert(c >= 0 && static_cast<size_t>(c) * NSq < M.size());
+            return &M[c * NSq];
+        }
+
+        DataType* bcBlock(const Index c)
+        {
+            assert(c >= 0 && static_cast<size_t>(c) * N < bc.size());
+            return &bc[c * N];
+        }
+    };
+
+    SchurData& getSchurData() { return schur_data_; }
+    const SchurData& getSchurData() const { return schur_data_; }
+
+    // Idempotent sizing helper
+    void resizeSchurCoefficients(const size_t numC)
+    {
+        if (numConstraints() == numC)
+            return;
+        schur_data_.G.clear();
+        schur_data_.H.assign(numC, {});
+        schur_data_.M.assign(numC * SchurData::NSq, 0.0);
+        schur_data_.bc.assign(numC * BLOCKSIZE, 0.0);
+    }
+
+    // Number of constraint equations carried by the augmented system —
+    // equivalently, the number of multiplier (lambda) slots.
+    size_t numConstraints() const
+    {
+        return schur_data_.H.size();
+    }
+
     void getMemoryFootprint(MemoryFootprint& data,
                             MemoryFootprint& connectivity) const
     {
@@ -204,132 +311,6 @@ public:
         }
     }
 
-    // Normalize matrix rows based on the row p1 norm
-    void normalize()
-    {
-        using TReal = typename Matrix::DataType;
-
-        auto& A = getAMatrix();
-        auto& b = getBVector();
-
-        for (Index i = 0; i < A.nRows(); i++)
-        {
-            const auto block_col_idx = A.rowCols(i);
-            const auto flat_block_row_values = A.rowVals(i);
-            const Index n_col_blocks = block_col_idx.size();
-            for (Index k = 0; k < BLOCKSIZE; k++)
-            {
-                // find p1-norm for the kth dof of the row
-                TReal norm = 0.0;
-                for (Index j = 0; j < n_col_blocks; j++)
-                {
-                    for (Index l = 0; l < BLOCKSIZE; l++)
-                    {
-                        const TReal& val =
-                            flat_block_row_values[j * BLOCKSIZE * BLOCKSIZE +
-                                                  k * BLOCKSIZE + l];
-                        norm += std::abs(val);
-                    }
-                }
-
-                // normalize the kth dof of the row
-                for (Index j = 0; j < n_col_blocks; j++)
-                {
-                    for (Index l = 0; l < BLOCKSIZE; l++)
-                    {
-                        TReal& val =
-                            flat_block_row_values[j * BLOCKSIZE * BLOCKSIZE +
-                                                  k * BLOCKSIZE + l];
-                        val /= norm;
-                    }
-                }
-
-                // do for the rhs
-                b[i * BLOCKSIZE + k] /= norm;
-            }
-        }
-    }
-
-    void diagonalScale()
-    {
-        using TReal = typename Matrix::DataType;
-
-        auto& A = getAMatrix();
-        auto& b = getBVector();
-
-        for (Index i = 0; i < A.nRows(); i++)
-        {
-            // 1) Get row structure (only reuse pointers)
-            const auto block_col_idx = A.rowCols(i);
-            auto flat_row_vals = A.rowVals(i);
-
-            const Index* block_col_idx_ptr = block_col_idx.data();
-            const Index n_col_blocks = static_cast<Index>(block_col_idx.size());
-            TReal* flat_row_vals_ptr = flat_row_vals.data();
-
-            // 2) Locate diagonal block A_ii
-            Index diag_block_local_index = -1;
-            for (Index j = 0; j < n_col_blocks; j++)
-            {
-                if (block_col_idx_ptr[j] == i)
-                {
-                    diag_block_local_index = j;
-                    break;
-                }
-            }
-
-            if (diag_block_local_index < 0)
-            {
-                throw std::runtime_error(
-                    "coefficients: Diagonal block missing in diagonalScale()");
-            }
-
-            // 3) Pointer to diagonal block
-            const TReal* diag_block_ptr =
-                flat_row_vals_ptr +
-                diag_block_local_index * BLOCKSIZE * BLOCKSIZE;
-
-            // 4) Compute scale[k] = 1 / A_ii(k,k)
-            TReal scale[BLOCKSIZE] = {0};
-            for (Index k = 0; k < BLOCKSIZE; k++)
-            {
-                const TReal diag_val = diag_block_ptr[k * BLOCKSIZE + k];
-
-                if (std::abs(diag_val) < 1e-30)
-                {
-                    throw std::runtime_error(
-                        "coefficients: Zero diagonal entry in diagonalScale()");
-                }
-
-                scale[k] = static_cast<TReal>(1.0) / diag_val;
-            }
-
-            // 5) Scale each block in row i
-            for (Index j = 0; j < n_col_blocks; j++)
-            {
-                TReal* block_ptr =
-                    flat_row_vals_ptr + j * BLOCKSIZE * BLOCKSIZE;
-
-                for (Index k = 0; k < BLOCKSIZE; k++)
-                {
-                    const TReal s = scale[k];
-
-                    for (Index l = 0; l < BLOCKSIZE; l++)
-                    {
-                        block_ptr[k * BLOCKSIZE + l] *= s;
-                    }
-                }
-            }
-
-            // 6) Scale the RHS block
-            TReal* bi_ptr = &b[i * BLOCKSIZE];
-            for (Index k = 0; k < BLOCKSIZE; k++)
-            {
-                bi_ptr[k] *= scale[k];
-            }
-        }
-    }
-
 private:
     const Index id_; // coefficient container ID
 
@@ -340,6 +321,10 @@ private:
     // auxiliary data (not initialized nor resized during coefficient
     // construction since only required for specific solvers)
     LUData LU_data_;
+
+    // augmented-system storage + caches.
+    // Sized lazily via resizeSchurCoefficients(numC)
+    SchurData schur_data_;
 };
 
 } /* namespace linearSolver */

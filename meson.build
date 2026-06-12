@@ -93,6 +93,7 @@ hdr = include_directories(
   'matrix/layout',
   'matrix/operators/blockMatrix',
   'matrix/operators/distributed',
+  'matrix/operators/scaling',
   'utils',
 )
 
@@ -168,6 +169,7 @@ install_headers(
   'matrix/operators/distributed/CRSMatrixVector.h',
   'matrix/operators/distributed/CRSResidual.h',
   'residual.h',
+  'schur.h',
   'utils/Common.h',
   'utils/Profiler.h',
   install_dir: 'include'
