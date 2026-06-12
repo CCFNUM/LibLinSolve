@@ -14,6 +14,7 @@
 #include <cstring>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <mpi.h>
 #include <sstream>
 #include <stdexcept>
@@ -188,39 +189,42 @@ public:
     // keeping lambda as an active unknown in the final linear solve.
     struct SchurData
     {
-        using GlobalNodeId = std::uint64_t;
-        static constexpr std::size_t NSq = N * N;
+        static constexpr Index NSq = N * N;
         using Block = std::array<DataType, NSq>;
 
-        std::map<GlobalNodeId, std::map<int, Block>> G;
-        std::vector<std::map<GlobalNodeId, Block>> H;
+        std::map<Index, std::map<Index, Block>> G;
+        std::vector<std::map<Index, Block>> H;
         Vector M;     // numC * NSq
         Vector bc;    // numC * N
 
         Vector Minv;
         Vector MinvBc;
-        std::vector<std::map<GlobalNodeId, Block>> MinvH;
+        std::vector<std::map<Index, Block>> MinvH;
         std::vector<char> cActive;
         Vector lambda; // numC * N
 
         // Block-level writers
-        Block& GBlock(GlobalNodeId row, int c) { return G[row][c]; }
-        Block& HBlock(int c, GlobalNodeId col)
+        Block& GBlock(const Index row, const Index c)
         {
-            assert(c >= 0 && static_cast<std::size_t>(c) < H.size());
-            return H[static_cast<std::size_t>(c)][col];
+            return G[row][c];
         }
-        DataType* MBlock(int c)
+
+        Block& HBlock(const Index c, const Index col)
         {
-            assert(c >= 0 &&
-                   static_cast<std::size_t>(c) * NSq < M.size());
-            return &M[static_cast<std::size_t>(c) * NSq];
+            assert(c >= 0 && static_cast<size_t>(c) < H.size());
+            return H[c][col];
         }
-        DataType* bcBlock(int c)
+
+        DataType* MBlock(const Index c)
         {
-            assert(c >= 0 &&
-                   static_cast<std::size_t>(c) * N < bc.size());
-            return &bc[static_cast<std::size_t>(c) * N];
+            assert(c >= 0 && static_cast<size_t>(c) * NSq < M.size());
+            return &M[c * NSq];
+        }
+
+        DataType* bcBlock(const Index c)
+        {
+            assert(c >= 0 && static_cast<size_t>(c) * N < bc.size());
+            return &bc[c * N];
         }
     };
 
@@ -228,7 +232,7 @@ public:
     const SchurData& getSchurData() const { return schur_data_; }
 
     // Idempotent sizing helper
-    void resizeSchurCoefficients(std::size_t numC)
+    void resizeSchurCoefficients(const size_t numC)
     {
         if (numConstraints() == numC)
             return;
@@ -240,7 +244,7 @@ public:
 
     // Number of constraint equations carried by the augmented system —
     // equivalently, the number of multiplier (lambda) slots.
-    std::size_t numConstraints() const
+    size_t numConstraints() const
     {
         return schur_data_.H.size();
     }

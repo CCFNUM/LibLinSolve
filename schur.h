@@ -38,7 +38,7 @@ void condense(coefficients<N>& coeffs,
     const MPI_Comm comm = coeffs.getCommunicator();
     const CRSNodeGraph& graph = *coeffs.getGraph();
 
-    const std::size_t numC = sd.M.size() / SchurData::NSq;
+    const Index numC = sd.M.size() / SchurData::NSq;
     if (numC == 0)
     {
         return;
@@ -67,18 +67,18 @@ void condense(coefficients<N>& coeffs,
                           comm);
 
             // Pack local H as (c, col, NSq doubles) triples.
-            std::vector<int> triCs;
-            std::vector<std::uint64_t> triCol;
+            std::vector<Index> triCs;
+            std::vector<Index> triCol;
             std::vector<DataType> triVal;
             triCs.reserve(numC);
             triCol.reserve(numC);
-            for (std::size_t c = 0; c < numC; ++c)
+            for (Index c = 0; c < numC; ++c)
             {
                 for (const auto& [col, blk] : sd.H[c])
                 {
-                    triCs.push_back(static_cast<int>(c));
+                    triCs.push_back(c);
                     triCol.push_back(col);
-                    for (std::size_t k = 0; k < SchurData::NSq; ++k)
+                    for (Index k = 0; k < SchurData::NSq; ++k)
                     {
                         triVal.push_back(blk[k]);
                     }
@@ -104,33 +104,32 @@ void condense(coefficients<N>& coeffs,
                 displsVals[r] =
                     displs[r] * static_cast<int>(SchurData::NSq);
             }
-            std::vector<int> allCs(total);
-            std::vector<std::uint64_t> allCol(total);
-            std::vector<DataType> allVal(
-                static_cast<std::size_t>(total) * SchurData::NSq);
+            std::vector<Index> allCs(total);
+            std::vector<Index> allCol(total);
+            std::vector<DataType> allVal(total * SchurData::NSq);
             MPI_Allgatherv(triCs.data(),
                            mineCount,
-                           MPI_INT,
+                           MPIDataType<Index>::type(),
                            allCs.data(),
                            counts.data(),
                            displs.data(),
-                           MPI_INT,
+                           MPIDataType<Index>::type(),
                            comm);
             MPI_Allgatherv(triCol.data(),
                            mineCount,
-                           MPI_UINT64_T,
+                           MPIDataType<Index>::type(),
                            allCol.data(),
                            counts.data(),
                            displs.data(),
-                           MPI_UINT64_T,
+                           MPIDataType<Index>::type(),
                            comm);
             MPI_Allgatherv(triVal.data(),
                            mineCount * static_cast<int>(SchurData::NSq),
-                           MPI_DOUBLE,
+                           MPIDataType<DataType>::type(),
                            allVal.data(),
                            countsVals.data(),
                            displsVals.data(),
-                           MPI_DOUBLE,
+                           MPIDataType<DataType>::type(),
                            comm);
             for (auto& s : sd.H)
             {
@@ -138,19 +137,16 @@ void condense(coefficients<N>& coeffs,
             }
             for (int i = 0; i < total; ++i)
             {
-                auto& dst =
-                    sd.H[static_cast<std::size_t>(allCs[i])][allCol[i]];
-                for (std::size_t k = 0; k < SchurData::NSq; ++k)
+                auto& dst = sd.H[allCs[i]][allCol[i]];
+                for (Index k = 0; k < SchurData::NSq; ++k)
                 {
-                    dst[k] +=
-                        allVal[static_cast<std::size_t>(i) * SchurData::NSq +
-                               k];
+                    dst[k] += allVal[i * SchurData::NSq + k];
                 }
             }
 
             // Cross-rank merge of G (A_cv)
-            std::vector<std::uint64_t> gRow;
-            std::vector<int> gCs;
+            std::vector<Index> gRow;
+            std::vector<Index> gCs;
             std::vector<DataType> gVal;
             for (const auto& [rowGid, csMap] : sd.G)
             {
@@ -158,7 +154,7 @@ void condense(coefficients<N>& coeffs,
                 {
                     gRow.push_back(rowGid);
                     gCs.push_back(cs);
-                    for (std::size_t k = 0; k < SchurData::NSq; ++k)
+                    for (Index k = 0; k < SchurData::NSq; ++k)
                     {
                         gVal.push_back(blk[k]);
                     }
@@ -184,43 +180,40 @@ void condense(coefficients<N>& coeffs,
                 gDisplsVals[r] =
                     gDispls[r] * static_cast<int>(SchurData::NSq);
             }
-            std::vector<std::uint64_t> gAllRow(gTotal);
-            std::vector<int> gAllCs(gTotal);
-            std::vector<DataType> gAllVal(
-                static_cast<std::size_t>(gTotal) * SchurData::NSq);
+            std::vector<Index> gAllRow(gTotal);
+            std::vector<Index> gAllCs(gTotal);
+            std::vector<DataType> gAllVal(gTotal * SchurData::NSq);
             MPI_Allgatherv(gRow.data(),
                            gMine,
-                           MPI_UINT64_T,
+                           MPIDataType<Index>::type(),
                            gAllRow.data(),
                            gCounts.data(),
                            gDispls.data(),
-                           MPI_UINT64_T,
+                           MPIDataType<Index>::type(),
                            comm);
             MPI_Allgatherv(gCs.data(),
                            gMine,
-                           MPI_INT,
+                           MPIDataType<Index>::type(),
                            gAllCs.data(),
                            gCounts.data(),
                            gDispls.data(),
-                           MPI_INT,
+                           MPIDataType<Index>::type(),
                            comm);
             MPI_Allgatherv(gVal.data(),
                            gMine * static_cast<int>(SchurData::NSq),
-                           MPI_DOUBLE,
+                           MPIDataType<DataType>::type(),
                            gAllVal.data(),
                            gCountsVals.data(),
                            gDisplsVals.data(),
-                           MPI_DOUBLE,
+                           MPIDataType<DataType>::type(),
                            comm);
             sd.G.clear();
-            for (int i = 0; i < gTotal; ++i)
+            for (Index i = 0; i < gTotal; ++i)
             {
                 auto& dst = sd.G[gAllRow[i]][gAllCs[i]];
-                for (std::size_t k = 0; k < SchurData::NSq; ++k)
+                for (Index k = 0; k < SchurData::NSq; ++k)
                 {
-                    dst[k] +=
-                        gAllVal[static_cast<std::size_t>(i) * SchurData::NSq +
-                                k];
+                    dst[k] += gAllVal[i * SchurData::NSq + k];
                 }
             }
         }
@@ -230,7 +223,7 @@ void condense(coefficients<N>& coeffs,
     sd.Minv.assign(numC * SchurData::NSq, DataType(0));
     sd.MinvBc.assign(numC * N, DataType(0));
     sd.cActive.assign(numC, 0);
-    for (std::size_t c = 0; c < numC; ++c)
+    for (Index c = 0; c < numC; ++c)
     {
         const DataType* Mblock = &sd.M[c * SchurData::NSq];
         if (BlockMatrix::isZero<NB>(Mblock))
@@ -252,7 +245,7 @@ void condense(coefficients<N>& coeffs,
 
     // MinvH[c][col] = Minv[c] * H[c, col]
     sd.MinvH.assign(numC, {});
-    for (std::size_t c = 0; c < numC; ++c)
+    for (Index c = 0; c < numC; ++c)
     {
         if (!sd.cActive[c])
         {
@@ -276,7 +269,7 @@ void condense(coefficients<N>& coeffs,
 
     for (const auto& rowEntry : sd.G)
     {
-        const typename SchurData::GlobalNodeId rowGid = rowEntry.first;
+        const Index rowGid = rowEntry.first;
 
         const Index rowID = globalToLocalRow(rowGid);
         if (rowID < 0 || rowID >= nOwnedRows)
@@ -290,8 +283,8 @@ void condense(coefficients<N>& coeffs,
 
         for (const auto& csEntry : rowEntry.second)
         {
-            const int c = csEntry.first;
-            if (c < 0 || static_cast<std::size_t>(c) >= numC)
+            const Index c = csEntry.first;
+            if (c < 0 || c >= numC)
             {
                 continue;
             }
@@ -310,7 +303,7 @@ void condense(coefficients<N>& coeffs,
             BlockMatrix::matrixVector<NB>(Gblock.data(),
                                           &sd.MinvBc[c * N],
                                           rhsDelta);
-            for (std::size_t ic = 0; ic < N; ++ic)
+            for (size_t ic = 0; ic < N; ++ic)
             {
                 b[rowID * N + ic] -= rhsDelta[ic];
             }
@@ -318,8 +311,7 @@ void condense(coefficients<N>& coeffs,
             // Matrix contributions per col: A[row, col] -= G * MinvH[col]
             for (const auto& colEntry : sd.MinvH[c])
             {
-                const typename SchurData::GlobalNodeId colGid =
-                    colEntry.first;
+                const Index colGid = colEntry.first;
                 const auto& MinvHBlock = colEntry.second;
                 DataType Adelta[SchurData::NSq];
                 BlockMatrix::matrixMatrix<NB>(Gblock.data(),
@@ -384,7 +376,7 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
     SchurData& sd = coeffs.getSchurData();
     const MPI_Comm comm = coeffs.getCommunicator();
 
-    const std::size_t numC = sd.M.size() / SchurData::NSq;
+    const Index numC = sd.M.size() / SchurData::NSq;
     if (numC == 0 || sd.MinvBc.empty())
     {
         return;
@@ -392,13 +384,13 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
 
     // Start from MinvBc (= Minv * bc).
     sd.lambda.assign(numC * N, DataType(0));
-    for (std::size_t c = 0; c < numC; ++c)
+    for (Index c = 0; c < numC; ++c)
     {
         if (!sd.cActive[c])
         {
             continue;
         }
-        for (std::size_t ic = 0; ic < N; ++ic)
+        for (size_t ic = 0; ic < N; ++ic)
         {
             sd.lambda[c * N + ic] = sd.MinvBc[c * N + ic];
         }
@@ -409,7 +401,7 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
     // local_id(col) * N + ic. The caller-provided globalToLocal
     // callable resolves the global → local index that matches the
     // matrix graph's indexing.
-    for (std::size_t c = 0; c < numC; ++c)
+    for (Index c = 0; c < numC; ++c)
     {
         if (!sd.cActive[c])
         {
@@ -417,8 +409,7 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
         }
         for (const auto& colEntry : sd.MinvH[c])
         {
-            const typename SchurData::GlobalNodeId colGid =
-                colEntry.first;
+            const Index colGid = colEntry.first;
             const auto& MinvHBlock = colEntry.second;
 
             const Index colLid = globalToLocal(colGid);
@@ -428,7 +419,7 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
             }
 
             DataType xvec[N];
-            for (std::size_t jc = 0; jc < N; ++jc)
+            for (size_t jc = 0; jc < N; ++jc)
             {
                 xvec[jc] = x[colLid * N + jc];
             }
@@ -449,7 +440,7 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
     if (nproc > 1)
     {
         std::vector<DataType> tmp(numC * N);
-        for (std::size_t i = 0; i < numC * N; ++i)
+        for (Index i = 0; i < static_cast<Index>(numC * N); ++i)
         {
             tmp[i] = sd.lambda[i] - sd.MinvBc[i];
         }
@@ -457,10 +448,10 @@ void calculateLambda(coefficients<N>& coeffs, GlobalToLocal&& globalToLocal)
         MPI_Allreduce(tmp.data(),
                       reduced.data(),
                       static_cast<int>(numC * N),
-                      MPI_DOUBLE,
+                      MPIDataType<DataType>::type(),
                       MPI_SUM,
                       comm);
-        for (std::size_t i = 0; i < numC * N; ++i)
+        for (Index i = 0; i < static_cast<Index>(numC * N); ++i)
         {
             sd.lambda[i] = sd.MinvBc[i] + reduced[i];
         }
