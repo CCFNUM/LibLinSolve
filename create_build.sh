@@ -7,10 +7,17 @@
 
 if [ $# -lt 1 ]; then
     cat <<EOF
-USAGE: $0 <path/to/build/dir> [meson setup args...]
+USAGE: $0 [--no-uenv] <path/to/build/dir> [meson setup args...]
 EOF
     exit 1
 fi
+
+require_uenv=true
+for arg; do
+    case ${arg} in
+        --no-uenv) require_uenv=false; shift ;;
+    esac
+done
 
 build_dir="${1}"; shift
 if [ -d "${build_dir}" ]; then
@@ -18,14 +25,19 @@ if [ -d "${build_dir}" ]; then
     exit 1
 fi
 
-if [ -z "${UENV_MOUNT_LIST}" ] && [ -z "${UENV_VIEW}" ]; then
+if $require_uenv && [ -z "${UENV_MOUNT_LIST}" ] && [ -z "${UENV_VIEW}" ]; then
     echo "No uenv loaded..."
     exit 1
 fi
+
 mkdir -p "${build_dir}"
-cat <<EOF >"${build_dir}/build_env.sh"
+
+if $require_uenv; then
+    cat <<EOF >"${build_dir}/build_env.sh"
 if [ -z "\${UENV_MOUNT_LIST}" ] && [ -z "\${UENV_VIEW}" ]; then
     export BUILD_PREFIX='uenv run ${UENV_VIEW:+--view ${UENV_VIEW##*:}} ${UENV_LABEL:-$UENV_ARG} -- '
 fi
 EOF
+fi
+
 meson setup "${build_dir}" "${@}"
