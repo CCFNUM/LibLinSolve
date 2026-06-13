@@ -11,17 +11,18 @@
 #ifdef USE_AMG_STUBS
 #include <stdexcept>
 
-static void* _stub(const size_t,
-                   const YAML::Node&,
-                   linearSolver::GraphLayout&,
-                   const YAML::Node*)
+static void* libAMG__stub(const size_t,
+                          const YAML::Node&,
+                          linearSolver::GraphLayout&,
+                          const YAML::Node*)
 {
     throw std::runtime_error("This liblinsolve build does not support libAMG");
     return nullptr;
 }
-linearSolver::AMGFactory getAMGSolverInstance = _stub;
-linearSolver::AMGFactory getGMRESSolverInstance = _stub;
-linearSolver::AMGFactory getDirectSolverInstance = _stub;
+
+linearSolver::AMGFactory getAMGSolverInstance = libAMG__stub;
+linearSolver::AMGFactory getGMRESSolverInstance = libAMG__stub;
+linearSolver::AMGFactory getDirectSolverInstance = libAMG__stub;
 #else
 #ifdef __cplusplus
 extern "C"
@@ -37,8 +38,8 @@ extern "C"
 #else
 #include <dlfcn.h>
 #include <stdexcept>
-static void* handle = nullptr;
-#define SYMBOL(x) (linearSolver::AMGFactory) dlsym(handle, #x)
+static void* libAMG__handle = nullptr;
+#define SYMBOL(x) (linearSolver::AMGFactory) dlsym(libAMG__handle, #x)
 #endif /* LIBLINSOLVE_STATIC */
 
 namespace linearSolver
@@ -47,10 +48,10 @@ namespace linearSolver
 AMGFactory getAMGFactory(const AMGFactoryType type)
 {
 #ifndef LIBLINSOLVE_STATIC
-    if (!handle)
+    if (!libAMG__handle)
     {
-        handle = dlopen("libAMG.so", RTLD_NOW | RTLD_LOCAL);
-        if (!handle)
+        libAMG__handle = dlopen("libAMG.so", RTLD_NOW | RTLD_LOCAL);
+        if (!libAMG__handle)
         {
             throw std::runtime_error(dlerror());
         }
