@@ -21,14 +21,14 @@ option('WITH_AMG',
 
 option('USE_PETSC',
   type: 'boolean',
-  value: true,
+  value: false,
   description: 'Use PETSc wrappers if dependency is found',
   yield: true
 )
 
 option('USE_HYPRE',
   type: 'boolean',
-  value: true,
+  value: false,
   description: 'Use HYPRE wrappers if dependency is found',
   yield: true
 )
