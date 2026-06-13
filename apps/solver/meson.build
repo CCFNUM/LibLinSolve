@@ -9,6 +9,8 @@ if has_amg
   libs += libAMG
 endif
 
+fs.copyfile('problem.yaml')
+
 executable('linear_solver_1',
   'LinearSolver.cpp',
   include_directories: hdr,
