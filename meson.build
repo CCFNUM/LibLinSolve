@@ -76,6 +76,13 @@ if get_option('USE_TRILINOS')
   endif
 endif
 
+if get_option('default_library') == 'static'
+  cpp_args += '-DLIBLINSOLVE_STATIC'
+endif
+if not get_option('WITH_AMG') and get_option('default_library') == 'static'
+  cpp_args += '-DUSE_AMG_STUBS'
+endif
+
 src = [
   'AMGFactory.cpp',
   'matrix/CRSNodeGraph.cpp',
