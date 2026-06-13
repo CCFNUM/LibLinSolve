@@ -34,6 +34,7 @@ extern "C"
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+#endif /* USE_AMG_STUBS */
 #define SYMBOL(x) (x)
 #else
 #include <dlfcn.h>
