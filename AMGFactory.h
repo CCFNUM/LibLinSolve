@@ -15,10 +15,11 @@
 namespace linearSolver
 {
 
-using AMGFactory = void* (*)(const size_t blocksize,
-                             const YAML::Node& node,
-                             GraphLayout& layout,
-                             const YAML::Node* solver_lookup);
+typedef void*(_AMGFactory)(const size_t blocksize,
+                           const YAML::Node& node,
+                           GraphLayout& layout,
+                           const YAML::Node* solver_lookup);
+typedef _AMGFactory* AMGFactory;
 
 enum class AMGFactoryType
 {

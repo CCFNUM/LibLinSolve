@@ -8,16 +8,23 @@
 #include <cassert>
 
 #ifdef LIBLINSOLVE_STATIC
-extern linearSolver::AMGFactory getAMGSolverInstance;
-extern linearSolver::AMGFactory getGMRESSolverInstance;
-extern linearSolver::AMGFactory getDirectSolverInstance;
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+    extern linearSolver::_AMGFactory getAMGSolverInstance;
+    extern linearSolver::_AMGFactory getGMRESSolverInstance;
+    extern linearSolver::_AMGFactory getDirectSolverInstance;
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 #define SYMBOL(x) (x)
 #else
 #include <dlfcn.h>
 #include <stdexcept>
 static void* handle = nullptr;
 #define SYMBOL(x) (linearSolver::AMGFactory) dlsym(handle, #x)
-#endif /* LIBLINSOLVE_INC */
+#endif /* LIBLINSOLVE_STATIC */
 
 namespace linearSolver
 {
