@@ -34,10 +34,10 @@ void CRSNodeGraph::buildGraph()
 
     if (isGraphMember())
     {
-        assert(row_ptr_.size() > 1);
-        assert(static_cast<Index>(primary_indices_.size()) ==
-            row_ptr_(row_ptr_.extent(0) - 1));
-        n_owned_nodes_ = static_cast<Index>(row_ptr_.size()) - 1;
+        assert(row_ptr_h_.size() > 1);
+        assert(static_cast<Index>(primary_indices_h_.size()) ==
+            row_ptr_h_(row_ptr_h_.extent(0) - 1));
+        n_owned_nodes_ = static_cast<Index>(row_ptr_h_.size()) - 1;
 
         computeAuxiliaryData_();
         computePackInfos_();
@@ -88,13 +88,12 @@ void CRSNodeGraph::buildGraph()
         }
         // c.)
         assert(n_owned_nodes_ ==
-               static_cast<Index>(diagonal_row_offset_.size()));
-        for (size_t i = 0; i < diagonal_row_offset_.size(); ++i)
+               static_cast<Index>(diagonal_row_offset_h_.size()));
+        for (size_t i = 0; i < diagonal_row_offset_h_.size(); ++i)
         {
-            assert(diagonal_row_offset_(i) >= 0);
+            assert(diagonal_row_offset_h_(i) >= 0);
         }
     }
-
 #endif /* NDEBUG */
     }
     else
@@ -116,6 +115,7 @@ void CRSNodeGraph::buildGraph()
     }
 }
 
+KOKKOS_FUNCTION
 const CRSNodeGraph::IndexView& CRSNodeGraph::localIndices() const
 {
     if (this->isLocalColumnOrder())
@@ -131,6 +131,7 @@ const CRSNodeGraph::IndexView& CRSNodeGraph::localIndices() const
     }
 }
 
+KOKKOS_FUNCTION
 const CRSNodeGraph::IndexView& CRSNodeGraph::globalIndices() const
 {
     if (this->isGlobalColumnOrder())
@@ -146,6 +147,7 @@ const CRSNodeGraph::IndexView& CRSNodeGraph::globalIndices() const
     }
 }
 
+KOKKOS_FUNCTION
 CRSNodeGraph::IndexSubview
 CRSNodeGraph::rowLocalIndices(const Index i_row) const
 {
@@ -174,6 +176,7 @@ CRSNodeGraph::rowLocalIndices(const Index i_row) const
     }
 }
 
+KOKKOS_FUNCTION
 CRSNodeGraph::IndexSubview
 CRSNodeGraph::rowGlobalIndices(const Index i_row) const
 {
@@ -202,6 +205,85 @@ CRSNodeGraph::rowGlobalIndices(const Index i_row) const
     }
 }
 
+// host functions
+const CRSNodeGraph::IndexViewHost& CRSNodeGraph::localIndicesHost() const
+{
+    if (this->isLocalColumnOrder())
+    {
+        assert(static_cast<Index>(primary_indices_h_.size()) ==
+               this->nIndices());
+        return primary_indices_h_; // sorted
+    }
+    else
+    {
+        assert(static_cast<Index>(secondary_indices_h_.size()) ==
+               this->nIndices());
+        return secondary_indices_h_; // not sorted
+    }
+}
+
+const CRSNodeGraph::IndexViewHost& CRSNodeGraph::globalIndicesHost() const
+{
+    if (this->isGlobalColumnOrder())
+    {
+        assert(static_cast<Index>(primary_indices_h_.size()) ==
+               this->nIndices());
+        return primary_indices_h_; // sorted
+    }
+    else
+    {
+        assert(static_cast<Index>(secondary_indices_h_.size()) ==
+               this->nIndices());
+        return secondary_indices_h_; // not sorted
+    }
+}
+
+CRSNodeGraph::IndexSubviewHost
+CRSNodeGraph::rowLocalIndicesHost(const Index i_row) const
+{
+    assert(0 <= i_row);
+    assert(i_row < this->nOwnedNodes());
+    if (this->isLocalColumnOrder())
+    {
+        assert(static_cast<Index>(primary_indices_h_.size()) ==
+               this->nIndices());
+        return Kokkos::subview(
+            primary_indices_h_,
+            Kokkos::make_pair(row_ptr_h_[i_row], row_ptr_h_[i_row + 1]));
+    }
+    else
+    {
+        assert(static_cast<Index>(secondary_indices_h_.size()) ==
+               this->nIndices());
+        return Kokkos::subview(
+            secondary_indices_h_,
+            Kokkos::make_pair(row_ptr_h_[i_row], row_ptr_h_[i_row + 1]));
+    }
+}
+
+CRSNodeGraph::IndexSubviewHost
+CRSNodeGraph::rowGlobalIndicesHost(const Index i_row) const
+{
+    assert(0 <= i_row);
+    assert(i_row < this->nOwnedNodes());
+    if (this->isGlobalColumnOrder())
+    {
+        assert(static_cast<Index>(primary_indices_h_.size()) ==
+               this->nIndices());
+        return Kokkos::subview(
+            primary_indices_h_,
+            Kokkos::make_pair(row_ptr_h_[i_row], row_ptr_h_[i_row + 1]));
+    }
+    else
+    {
+        assert(static_cast<Index>(secondary_indices_h_.size()) ==
+               this->nIndices());
+        return Kokkos::subview(
+            secondary_indices_h_,
+            Kokkos::make_pair(row_ptr_h_[i_row], row_ptr_h_[i_row + 1]));
+    }
+}
+
 void CRSNodeGraph::getMemoryFootprint(MemoryFootprint& data) const
 {
     assert(is_built_);
@@ -210,12 +292,12 @@ void CRSNodeGraph::getMemoryFootprint(MemoryFootprint& data) const
     if (isGraphMember())
     {
         // integer array data
-        unsigned long long int n_elements = row_ptr_.size();
-        n_elements += primary_indices_.size();
-        n_elements += secondary_indices_.size();
-        n_elements += row_nnz_owned_.size();
-        n_elements += row_nnz_ghost_.size();
-        n_elements += diagonal_row_offset_.size();
+        unsigned long long int n_elements = row_ptr_h_.size();
+        n_elements += primary_indices_h_.size();
+        n_elements += secondary_indices_h_.size();
+        n_elements += row_nnz_owned_h_.size();
+        n_elements += row_nnz_ghost_h_.size();
+        n_elements += diagonal_row_offset_h_.size();
         for (const PackInfo& p : pack_infos_)
         {
             n_elements += p.send_idx.size();
@@ -249,19 +331,19 @@ void CRSNodeGraph::serialize(std::ofstream& out) const
     out.write(p64, sizeof(uint64_t));
 
     // data
-    for (size_t i = 0; i < row_ptr_.extent(0); ++i)
+    for (size_t i = 0; i < row_ptr_h_.extent(0); ++i)
     {
-        v64 = row_ptr_(i);
+        v64 = row_ptr_h_(i);
         out.write(p64, sizeof(uint64_t));
     }
-    for (size_t i = 0; i < primary_indices_.extent(0); ++i)
+    for (size_t i = 0; i < primary_indices_h_.extent(0); ++i)
     {
-        v64 = primary_indices_(i);
+        v64 = primary_indices_h_(i);
         out.write(p64, sizeof(uint64_t));
     }
-    for (size_t i = 0; i < secondary_indices_.extent(0); ++i)
+    for (size_t i = 0; i < secondary_indices_h_.extent(0); ++i)
     {
-        v64 = secondary_indices_(i);
+        v64 = secondary_indices_h_(i);
         out.write(p64, sizeof(uint64_t));
     }
 }
@@ -276,28 +358,36 @@ void CRSNodeGraph::deserialize(std::ifstream& in)
     n_owned_nodes_ = static_cast<Index>(v64);
     in.read(p64, sizeof(uint64_t));
     Kokkos::resize(row_ptr_, v64);
-    Kokkos::deep_copy(row_ptr_, 0);
+    row_ptr_h_ = Kokkos::create_mirror_view(row_ptr_);
+    Kokkos::deep_copy(row_ptr_h_, 0);
     in.read(p64, sizeof(uint64_t));
     Kokkos::resize(primary_indices_, v64);
-    Kokkos::deep_copy(primary_indices_, 0);
+    primary_indices_h_ = Kokkos::create_mirror_view(primary_indices_);
+    Kokkos::deep_copy(primary_indices_h_, 0);
     Kokkos::resize(secondary_indices_, v64);
-    Kokkos::deep_copy(secondary_indices_, 0);
+    secondary_indices_h_ = Kokkos::create_mirror_view(secondary_indices_);
+    Kokkos::deep_copy(secondary_indices_h_, 0);
 
-    for (size_t i = 0; i < row_ptr_.size(); i++)
+    for (size_t i = 0; i < row_ptr_h_.size(); i++)
     {
         in.read(p64, sizeof(uint64_t));
-        row_ptr_[i] = static_cast<Index>(v64);
+        row_ptr_h_[i] = static_cast<Index>(v64);
     }
-    for (size_t i = 0; i < primary_indices_.size(); i++)
+    for (size_t i = 0; i < primary_indices_h_.size(); i++)
     {
         in.read(p64, sizeof(uint64_t));
-        primary_indices_[i] = static_cast<Index>(v64);
+        primary_indices_h_[i] = static_cast<Index>(v64);
     }
-    for (size_t i = 0; i < secondary_indices_.size(); i++)
+    for (size_t i = 0; i < secondary_indices_h_.size(); i++)
     {
         in.read(p64, sizeof(uint64_t));
-        secondary_indices_[i] = static_cast<Index>(v64);
+        secondary_indices_h_[i] = static_cast<Index>(v64);
     }
+
+    // update device
+    Kokkos::deep_copy(row_ptr_, row_ptr_h_);
+    Kokkos::deep_copy(primary_indices_, primary_indices_h_);
+    Kokkos::deep_copy(secondary_indices_, secondary_indices_h_);
 }
 
 typename CRSNodeGraph::Index CRSNodeGraph::filterGhostsForOwnerRank_(
@@ -359,11 +449,11 @@ void CRSNodeGraph::computePackInfos_()
     std::vector<Index> global_ghost;
     std::vector<Index> local_ghost;
     std::unordered_set<Index> ghost_query;
-    const auto local_idx = this->localIndices();
-    const auto global_idx = this->globalIndices();
+    const auto local_idx = this->localIndicesHost();
+    const auto global_idx = this->globalIndicesHost();
     for (Index i = 0; i < n_owned_nodes_; i++)
     {
-        for (Index j = row_ptr_[i]; j < row_ptr_[i + 1]; j++)
+        for (Index j = row_ptr_h_[i]; j < row_ptr_h_[i + 1]; j++)
         {
             const Index j_local = local_idx[j];
             if (j_local >= n_owned_nodes_) // a ghost
@@ -527,26 +617,29 @@ void CRSNodeGraph::computePackInfos_()
 void CRSNodeGraph::computeDiagonalIndices_()
 {
     assert(is_built_);
-    if (diagonal_row_offset_.size() != 0)
+    if (diagonal_row_offset_h_.size() != 0)
     {
         assert(n_owned_nodes_ ==
-               static_cast<Index>(diagonal_row_offset_.size()));
+               static_cast<Index>(diagonal_row_offset_h_.size()));
         return;
     }
     Kokkos::resize(diagonal_row_offset_, n_owned_nodes_);
-    Kokkos::deep_copy(diagonal_row_offset_, -1);
-    const auto local_idx = this->localIndices();
+    diagonal_row_offset_h_ = Kokkos::create_mirror_view(diagonal_row_offset_);
+    Kokkos::deep_copy(diagonal_row_offset_h_, -1);
+    const auto local_idx = this->localIndicesHost();
     for (Index i = 0; i < n_owned_nodes_; i++)
     {
-        for (Index J = row_ptr_[i]; J < row_ptr_[i + 1]; J++)
+        for (Index J = row_ptr_h_[i]; J < row_ptr_h_[i + 1]; J++)
         {
             if (i == local_idx[J])
             {
-                diagonal_row_offset_[i] = J - row_ptr_[i];
+                diagonal_row_offset_h_[i] = J - row_ptr_h_[i];
                 break;
             }
         }
     }
+    // update device
+    Kokkos::deep_copy(diagonal_row_offset_, diagonal_row_offset_h_);
 }
 
 void CRSNodeGraph::computeAuxiliaryData_()
@@ -563,29 +656,32 @@ void CRSNodeGraph::computeAuxiliaryData_()
 void CRSNodeGraph::computeRowNonZeros_()
 {
     assert(is_built_);
-    if (row_nnz_owned_.size() != 0 || row_nnz_ghost_.size() != 0)
+
+    if (row_nnz_owned_h_.size() != 0 || row_nnz_ghost_h_.size() != 0)
     {
-        assert(n_owned_nodes_ == static_cast<Index>(row_nnz_owned_.size()));
-        assert(row_nnz_owned_.size() == row_nnz_ghost_.size());
+        assert(n_owned_nodes_ == static_cast<Index>(row_nnz_owned_h_.size()));
+        assert(row_nnz_owned_h_.size() == row_nnz_ghost_h_.size());
         return;
     }
     Kokkos::resize(row_nnz_owned_, n_owned_nodes_);
-    Kokkos::deep_copy(row_nnz_owned_, 0);
+    row_nnz_owned_h_ = Kokkos::create_mirror_view(row_nnz_owned_);
+    Kokkos::deep_copy(row_nnz_owned_h_, 0);
     Kokkos::resize(row_nnz_ghost_, n_owned_nodes_);
-    Kokkos::deep_copy(row_nnz_ghost_, 0);
+    row_nnz_ghost_h_ = Kokkos::create_mirror_view(row_nnz_ghost_);
+    Kokkos::deep_copy(row_nnz_ghost_h_, 0);
 
-    const auto local_idx = this->localIndices();
+    const auto local_idx = this->localIndicesHost();
     for (Index i = 0; i < n_owned_nodes_; i++)
     {
-        for (Index J = row_ptr_[i]; J < row_ptr_[i + 1]; J++)
+        for (Index J = row_ptr_h_[i]; J < row_ptr_h_[i + 1]; J++)
         {
             if (local_idx[J] < n_owned_nodes_)
             {
-                ++row_nnz_owned_[i];
+                ++row_nnz_owned_h_[i];
             }
             else
             {
-                ++row_nnz_ghost_[i];
+                ++row_nnz_ghost_h_[i];
             }
         }
     }
@@ -627,16 +723,16 @@ void CRSNodeGraph::computeGlobalGraphSize_()
 
 void CRSNodeGraph::sortPrimaryIndices_()
 {
-    assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
+    assert(static_cast<Index>(primary_indices_h_.size()) == this->nIndices());
     const bool has_secondary =
-        (static_cast<Index>(secondary_indices_.size()) == this->nIndices())
+        (static_cast<Index>(secondary_indices_h_.size()) == this->nIndices())
             ? true
             : false;
 
 #ifndef NDEBUG
     if (has_secondary)
     {
-        assert(static_cast<Index>(secondary_indices_.size()) ==
+        assert(static_cast<Index>(secondary_indices_h_.size()) ==
                this->nIndices());
     }
 #endif /* NDEBUG */
@@ -646,8 +742,8 @@ void CRSNodeGraph::sortPrimaryIndices_()
     for (Index i_row = 0; i_row < n_owned_nodes_; ++i_row)
     {
         auto primary_idx = Kokkos::subview(
-            primary_indices_,
-            Kokkos::make_pair(row_ptr_[i_row], row_ptr_[i_row + 1]));
+            primary_indices_h_,
+            Kokkos::make_pair(row_ptr_h_[i_row], row_ptr_h_[i_row + 1]));
 
         permute.resize(primary_idx.size());
         std::iota(permute.begin(), permute.end(), 0);
@@ -660,8 +756,8 @@ void CRSNodeGraph::sortPrimaryIndices_()
         if (has_secondary)
         {
             auto secondary_idx = Kokkos::subview(
-                secondary_indices_,
-                Kokkos::make_pair(row_ptr_[i_row], row_ptr_[i_row + 1]));
+                secondary_indices_h_,
+                Kokkos::make_pair(row_ptr_h_[i_row], row_ptr_h_[i_row + 1]));
             CRSNodeGraph::permuteCopy_(secondary_idx.data(), buffer, permute);
         }
     }
@@ -748,13 +844,22 @@ void CRSNodeGraph::resetGraph_()
     global_number_indices_ = ~0ull;
 
     // DAVEKOKKOS: should be row_map_type_
-    row_ptr_ = IndexView{};
-    primary_indices_ = IndexView{};
-    secondary_indices_ = IndexView{};
+    row_ptr_ = IndexView{"row_ptr", 0};
+    primary_indices_ = IndexView{"primary_indices", 0};
+    secondary_indices_ = IndexView{"secondary_indices", 0};
 
-    row_nnz_owned_ = IndexView{};
-    row_nnz_ghost_ = IndexView{};
-    diagonal_row_offset_ = IndexView{};
+    row_nnz_owned_ = IndexView{"row_nnz_owned", 0};
+    row_nnz_ghost_ = IndexView{"row_nnz_ghost", 0};
+    diagonal_row_offset_ = IndexView{"diagonal_row_offset", 0};
+
+    // reset mirrors
+    row_ptr_h_ = Kokkos::create_mirror_view(row_ptr_);
+    primary_indices_h_ = Kokkos::create_mirror_view(primary_indices_);
+    secondary_indices_h_ = Kokkos::create_mirror_view(secondary_indices_);
+
+    row_nnz_owned_h_ = Kokkos::create_mirror_view(row_nnz_owned_);
+    row_nnz_ghost_h_ = Kokkos::create_mirror_view(row_nnz_ghost_);
+    diagonal_row_offset_h_ = Kokkos::create_mirror_view(diagonal_row_offset_);
 
     pack_infos_.clear();
 }

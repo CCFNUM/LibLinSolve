@@ -42,7 +42,7 @@ public:
 
     CRSNodeGraphSynchronizer() = delete;
 
-    CRSNodeGraphSynchronizer(const CRSNodeGraph* graph)
+    CRSNodeGraphSynchronizer(const CRSNodeGraph& graph)
         : graph_(graph), recv_complete_(0)
     {
         this->resizePackData();
@@ -62,7 +62,7 @@ public:
     void resizePackData()
     {
         pack_data_.clear();
-        const std::vector<PackInfo>& infos = graph_->getPackInfos();
+        const std::vector<PackInfo>& infos = graph_.getPackInfos();
         for (const PackInfo& info : infos)
         {
             assert(info.send_idx.size() > 0 || info.recv_idx.size() > 0);
@@ -126,8 +126,8 @@ public:
         }
 
         // post receives
-        const int rank = graph_->commRank();
-        const MPI_Comm comm = graph_->getCommunicator();
+        const int rank = graph_.commRank();
+        const MPI_Comm comm = graph_.getCommunicator();
         for (PackData& pd : pack_data_)
         {
             const PackInfo* info = pd.info;
@@ -179,11 +179,10 @@ public:
                     std::cout << "RANK " << rank
                               << ": remote_rank=" << pd->info->remote_rank
                               << '\n';
-                    std::cout << "\tn nodes:\t" << graph_->nOwnedNodes()
+                    std::cout << "\tn nodes:\t" << graph_.nOwnedNodes() << '\n';
+                    std::cout << "\tn ghosts:\t" << graph_.nGhostNodes()
                               << '\n';
-                    std::cout << "\tn ghosts:\t" << graph_->nGhostNodes()
-                              << '\n';
-                    std::cout << "\tn active:\t" << graph_->nAllNodes() << '\n';
+                    std::cout << "\tn active:\t" << graph_.nAllNodes() << '\n';
                     std::cout << "\tsend_idx (" << pd->info->send_idx.size()
                               << "):";
                     for (const Index i : pd->info->send_idx)
@@ -291,7 +290,7 @@ public:
     }
 
 private:
-    const CRSNodeGraph* graph_;
+    const CRSNodeGraph graph_;
     std::vector<PackData> pack_data_;
     std::vector<MPI_Request> pending_recv_;
     std::vector<MPI_Request> pending_send_;
@@ -323,7 +322,7 @@ private:
         T* send_dst = data.send_buf.data();
         for (const Index i : info->send_idx)
         {
-            assert(BLOCKSIZE * (i + 1) - 1 < BLOCKSIZE * graph_->nOwnedNodes());
+            assert(BLOCKSIZE * (i + 1) - 1 < BLOCKSIZE * graph_.nOwnedNodes());
             const T* send_src = &src[BLOCKSIZE * i];
             for (int k = 0; k < BLOCKSIZE; k++)
             {

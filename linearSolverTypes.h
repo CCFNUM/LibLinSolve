@@ -36,11 +36,14 @@ using CRSMatrixType = KokkosSparse::Experimental::
 using CRSGraphType = typename CRSMatrixType::staticcrsgraph_type;
 using RowPtrView = typename CRSGraphType::row_map_type;
 using IndexView = typename CRSGraphType::entries_type;
+using IndexViewHost = typename IndexView::HostMirror;
+
 using ScalarView = typename CRSMatrixType::values_type;
 
 using RangeType = Kokkos::pair<TGraphIndex, TGraphIndex>;
 using RowPtrSubview = Kokkos::Subview<RowPtrView, RangeType>;
 using IndexSubview = Kokkos::Subview<IndexView, RangeType>;
+using IndexSubviewHost = Kokkos::Subview<IndexViewHost, RangeType>;
 using ScalarSubview = Kokkos::Subview<ScalarView, RangeType>;
 
 // RowPtrSubview: view<const TGraphIndex*>

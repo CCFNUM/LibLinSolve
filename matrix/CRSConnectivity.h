@@ -24,97 +24,97 @@ public:
     using IndexSubview = CRSNodeGraph::IndexSubview;
     CRSConnectivity() = delete;
 
-    CRSConnectivity(const CRSNodeGraph* graph) : graph_(graph)
+    CRSConnectivity(const CRSNodeGraph* graph) : graph_(*graph)
     {
     }
 
     virtual ~CRSConnectivity()
     {
-        graph_ = nullptr;
     }
 
-    const CRSNodeGraph* getGraph() const
+    KOKKOS_INLINE_FUNCTION
+    const CRSNodeGraph& getGraph() const
     {
         return graph_;
     }
 
     MPI_Comm getCommunicator() const
     {
-        return graph_->getCommunicator();
+        return graph_.getCommunicator();
     }
 
     int commRank() const
     {
-        return graph_->commRank();
+        return graph_.commRank();
     }
 
     int commSize() const
     {
-        return graph_->commSize();
+        return graph_.commSize();
     }
 
-    inline Index globalRowOffset() const
+    KOKKOS_INLINE_FUNCTION Index globalRowOffset() const
     {
-        return graph_->globalRowOffset();
+        return graph_.globalRowOffset();
     };
 
-    inline Index nRows() const
+    KOKKOS_INLINE_FUNCTION Index nRows() const
     {
-        return graph_->nRows();
+        return graph_.nRows();
     };
 
-    inline Index nGlobalRows() const
+    KOKKOS_INLINE_FUNCTION Index nGlobalRows() const
     {
-        return graph_->nGlobalRows();
+        return graph_.nGlobalRows();
     };
 
-    inline Index nnzBlocks() const
+    KOKKOS_INLINE_FUNCTION Index nnzBlocks() const
     {
-        return graph_->nIndices();
+        return graph_.nIndices();
     }
 
-    inline unsigned long long nnzGlobalBlocks() const
+    KOKKOS_INLINE_FUNCTION unsigned long long nnzGlobalBlocks() const
     {
-        return graph_->nGlobalIndices();
+        return graph_.nGlobalIndices();
     }
 
-    inline const Index* offsetsPtr() const
+    KOKKOS_INLINE_FUNCTION const Index* offsetsPtr() const
     {
-        return graph_->offsets().data();
+        return graph_.offsets().data();
     }
 
     // DAVEKOKKOS: should be row_map_type_!!
-    inline const IndexView& offsetsRef() const
+    KOKKOS_INLINE_FUNCTION const IndexView& offsetsRef() const
     {
-        return graph_->offsets();
+        return graph_.offsets();
     }
 
-    inline const Index* indicesPtr() const
+    KOKKOS_INLINE_FUNCTION const Index* indicesPtr() const
     {
-        return graph_->indices().data();
+        return graph_.indices().data();
     }
 
-    inline const IndexView& indicesRef() const
+    KOKKOS_INLINE_FUNCTION const IndexView& indicesRef() const
     {
-        return graph_->indices();
+        return graph_.indices();
     }
 
-    inline const Index* diagOffsetPtr() const
+    KOKKOS_INLINE_FUNCTION const Index* diagOffsetPtr() const
     {
-        return graph_->diagonalIndicesOffset().data();
+        return graph_.diagonalIndicesOffset().data();
     }
 
-    inline const IndexView& diagOffsetRef() const
+    KOKKOS_INLINE_FUNCTION const IndexView& diagOffsetRef() const
     {
-        return graph_->diagonalIndicesOffset();
+        return graph_.diagonalIndicesOffset();
     }
 
-    inline Index diagOffset(Index iRow) const
+    KOKKOS_INLINE_FUNCTION Index diagOffset(Index iRow) const
     {
-        return graph_->diagonalIndicesOffset()[iRow];
+        return graph_.diagonalIndicesOffset()[iRow];
     }
 
-    inline IndexSubview rowCols(Index iRow) const
+    KOKKOS_INLINE_FUNCTION IndexSubview rowCols(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -124,18 +124,18 @@ public:
             Kokkos::make_pair(row_ptr[iRow], row_ptr[iRow + 1]));
     }
 
-    inline Index localToGlobal(Index localID) const
+    KOKKOS_INLINE_FUNCTION Index localToGlobal(Index localID) const
     {
-        return graph_->localToGlobalIndex(localID);
+        return graph_.localToGlobalIndex(localID);
     };
 
-    inline Index globalToLocal(Index globalID) const
+    KOKKOS_INLINE_FUNCTION Index globalToLocal(Index globalID) const
     {
-        return graph_->globalToLocalIndex(globalID);
+        return graph_.globalToLocalIndex(globalID);
     };
 
 protected:
-    const CRSNodeGraph* graph_; // never owned by this class
+    const CRSNodeGraph graph_;
 };
 
 } // namespace linearSolver

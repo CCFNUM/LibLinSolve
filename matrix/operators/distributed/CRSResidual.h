@@ -11,6 +11,7 @@
 #include "blockMatrixOperators.h"
 #include <algorithm>
 #include <cassert>
+#include "KokkosSparse_spmv.hpp"
 
 #define BLOCKING 1
 
@@ -34,30 +35,34 @@ void CRSResidual(const CRSMatrix<N>& A,
     // TODO: [fab4100@posteo.net; 2024-04-18] this could be relaxed if recv_buf
     // is used directly in algorithm
     assert(static_cast<Index>(x.size()) ==
-           BLOCKSIZE * A.getGraph()->nAllNodes());
+           BLOCKSIZE * A.getGraph().nAllNodes());
 
-    const CRSNodeGraph* graph = A.getGraph();
+    const CRSNodeGraph& graph = A.getGraph();
     CRSNodeGraphSynchronizer<N, Real> sync(graph);
     sync.async(x);
 
     // r = b - Ax
 #if BLOCKING
     sync.waitAll(x);
-    for (Index i = 0; i < A.nRows(); i++)
-    {
-        const auto local_idx = graph->rowLocalIndices(i);
-        const auto coeffs = A.rowVals(i);
+    Kokkos::deep_copy(r, b);
+    KokkosSparse::spmv(
+        "N", TRealSolver(-1), A.getCrsMatrix(), x, TRealSolver(1), r);
+    Kokkos::fence();
+    // for (Index i = 0; i < A.nRows(); i++)
+    // {
+    //     const auto local_idx = graph->rowLocalIndices(i);
+    //     const auto coeffs = A.rowVals(i);
 
-        Real* r_blk = &r[BLOCKSIZE * i];
-        const Real* b_blk = &b[BLOCKSIZE * i];
-        BlockMatrix::vectorAssign<BLOCKSIZE>(b_blk, r_blk);
-        for (Index j = 0; j < static_cast<Index>(local_idx.size()); j++)
-        {
-            const Real* a_blk = &coeffs[BLOCKSIZE * BLOCKSIZE * j];
-            const Real* x_blk = &x[BLOCKSIZE * local_idx[j]];
-            BlockMatrix::matrixVectorSub<BLOCKSIZE>(a_blk, x_blk, r_blk);
-        }
-    }
+    //     Real* r_blk = &r[BLOCKSIZE * i];
+    //     const Real* b_blk = &b[BLOCKSIZE * i];
+    //     BlockMatrix::vectorAssign<BLOCKSIZE>(b_blk, r_blk);
+    //     for (Index j = 0; j < static_cast<Index>(local_idx.size()); j++)
+    //     {
+    //         const Real* a_blk = &coeffs[BLOCKSIZE * BLOCKSIZE * j];
+    //         const Real* x_blk = &x[BLOCKSIZE * local_idx[j]];
+    //         BlockMatrix::matrixVectorSub<BLOCKSIZE>(a_blk, x_blk, r_blk);
+    //     }
+    // }
 #else
     // WIP: [fab4100@posteo.net; 2024-04-18] asynchronous
 #endif /* BLOCKING */
