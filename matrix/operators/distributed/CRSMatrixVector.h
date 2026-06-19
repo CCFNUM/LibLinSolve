@@ -33,7 +33,7 @@ void CRSMatrixVector(const CRSMatrix<N>& A,
     // TODO: [fab4100@posteo.net; 2024-04-18] this could be relaxed if recv_buf
     // is used directly in algorithm
     assert(static_cast<Index>(x.size()) ==
-           BLOCKSIZE * A.getGraph()->nAllNodes());
+           BLOCKSIZE * A.getGraph().nAllNodes());
 
     const CRSNodeGraph* graph = A.getGraph();
     CRSNodeGraphSynchronizer<N, Real> sync(graph);

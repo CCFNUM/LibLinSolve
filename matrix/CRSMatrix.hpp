@@ -279,7 +279,7 @@ typename CRSMatrix<N>::DataType CRSMatrix<N>::operator()(Index i, Index j) const
 template <size_t N>
 typename CRSMatrix<N>::Index CRSMatrix<N>::bandwidth() const
 {
-    assert(this->commSize() == 1 || this->graph_->isGlobalColumnOrder());
+    assert(this->commSize() == 1 || this->graph_.isGlobalColumnOrder());
 
     // NOTE [faw 2025-12-15]: serial implementation
 
@@ -303,7 +303,7 @@ typename CRSMatrix<N>::Index CRSMatrix<N>::bandwidth() const
 template <size_t N>
 typename CRSMatrix<N>::Index CRSMatrix<N>::profile() const
 {
-    assert(this->commSize() == 1 || this->graph_->isGlobalColumnOrder());
+    assert(this->commSize() == 1 || this->graph_.isGlobalColumnOrder());
 
     // NOTE [faw 2025-12-15]: serial implementation
 

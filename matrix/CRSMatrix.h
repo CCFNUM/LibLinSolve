@@ -77,37 +77,37 @@ public:
     }
 
     // Access / on-the-fly operations
-    inline Index nnz() const
+    KOKKOS_INLINE_FUNCTION Index nnz() const
     {
         return BLOCKSIZE * BLOCKSIZE * this->nnzBlocks();
     }
 
-    inline unsigned long long nnzGlobal() const
+    KOKKOS_INLINE_FUNCTION unsigned long long nnzGlobal() const
     {
         return BLOCKSIZE * BLOCKSIZE * this->nnzGlobalBlocks();
     }
 
-    inline DataType* valuesPtr()
+    KOKKOS_INLINE_FUNCTION DataType* valuesPtr()
     {
         return values_.data();
     }
 
-    inline const DataType* valuesPtr() const
+    KOKKOS_INLINE_FUNCTION const DataType* valuesPtr() const
     {
         return values_.data();
     }
 
-    inline ScalarView& valuesRef()
+    KOKKOS_INLINE_FUNCTION ScalarView& valuesRef()
     {
         return values_;
     }
 
-    inline const ScalarView& valuesRef() const
+    KOKKOS_INLINE_FUNCTION const ScalarView& valuesRef() const
     {
         return values_;
     }
 
-    inline ScalarSubview rowVals(Index iRow) const
+    KOKKOS_INLINE_FUNCTION ScalarSubview rowVals(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -118,14 +118,14 @@ public:
                               BLOCKSIZE * BLOCKSIZE * offsets[iRow + 1]));
     }
 
-    inline auto blockRowVals(Index iRow) const
+    KOKKOS_INLINE_FUNCTION auto blockRowVals(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
         return crsmatrix_.block_row(iRow);
     }
 
-    inline IndexSubview blockRowCols(Index iRow) const
+    KOKKOS_INLINE_FUNCTION IndexSubview blockRowCols(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -145,7 +145,7 @@ public:
     //         BLOCKSIZE * BLOCKSIZE * (offsets[iRow + 1] - offsets[iRow]));
     // }
 
-    inline DataType& dofDiag(Index iRow, Index dof = 0)
+    KOKKOS_INLINE_FUNCTION DataType& dofDiag(Index iRow, Index dof = 0)
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -154,7 +154,8 @@ public:
                                    (BLOCKSIZE + 1) * dof];
     };
 
-    inline const DataType& dofDiag(Index iRow, Index dof = 0) const
+    KOKKOS_INLINE_FUNCTION const DataType& dofDiag(Index iRow,
+                                                   Index dof = 0) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -163,7 +164,7 @@ public:
                                    (BLOCKSIZE + 1) * dof];
     };
 
-    inline DataType* diag(Index iRow)
+    KOKKOS_INLINE_FUNCTION DataType* diag(Index iRow)
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -173,7 +174,7 @@ public:
                         BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
     };
 
-    inline const DataType* diag(Index iRow) const
+    KOKKOS_INLINE_FUNCTION const DataType* diag(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -183,7 +184,7 @@ public:
                         BLOCKSIZE * BLOCKSIZE * diag_offsets[iRow]];
     };
 
-    inline auto blockDiag(Index iRow) const 
+    KOKKOS_INLINE_FUNCTION auto blockDiag(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
@@ -228,6 +229,12 @@ public:
     };
 
     DataType norm(const MatrixNorm type = MatrixNorm::Frobenius) const;
+
+    KOKKOS_INLINE_FUNCTION
+    const CRSMatrixType& getCrsMatrix() const
+    {
+        return crsmatrix_;
+    }
 };
 } // namespace linearSolver
 

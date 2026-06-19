@@ -360,7 +360,7 @@ private:
         for (Index i = 0; i < n_local; ++i)
         {
             // Number of block columns in this row
-            const size_t block_nnz = A.getGraph()->rowGlobalIndices(i).size();
+            const size_t block_nnz = A.getGraph().rowGlobalIndices(i).size();
             // Each scalar row within this block row has block_nnz * N entries
             const size_t scalar_nnz = block_nnz * N;
             for (Index k = 0; k < N; ++k)
@@ -494,7 +494,7 @@ private:
 
         for (Index i = 0; i < n_rows; ++i)
         {
-            const auto cols = A.getGraph()->rowGlobalIndices(i);
+            const auto cols = A.getGraph().rowGlobalIndices(i);
             matrixLayout::blockRowToRowMajor(
                 i, A, cols, row_nnz, row_idx, col_idx, values);
             const Index block_nnz = row_nnz.front();

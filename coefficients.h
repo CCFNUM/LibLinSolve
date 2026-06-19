@@ -52,6 +52,7 @@ public:
         zeroALL();
     }
 
+    KOKKOS_INLINE_FUNCTION
     Index getID() const
     {
         return id_;
@@ -59,17 +60,17 @@ public:
 
     void setGraph(const CRSNodeGraph* graph)
     {
-        graph_ = graph;
+        graph_ = *graph;
         resizeGraph();
     }
 
     void resizeGraph()
     {
-        assert(graph_ && graph_->isBuilt()); // MPI data is correct if graph is
-                                             // built
+        assert(graph_.isBuilt()); // MPI data is correct if graph is
+                                  // built
 
-        const Index n_local_coeff = graph_->nOwnedNodes();
-        const Index n_local_ghosts = graph_->nGhostNodes();
+        const Index n_local_coeff = graph_.nOwnedNodes();
+        const Index n_local_ghosts = graph_.nGhostNodes();
 
         Kokkos::resize(this->values_, this->nnz()); // matrix coefficients
         Kokkos::resize(x_, BLOCKSIZE * (n_local_coeff + n_local_ghosts));
@@ -78,12 +79,19 @@ public:
     }
 
     // clang-format off
+    KOKKOS_INLINE_FUNCTION
     Matrix &getAMatrix() { return *static_cast<Matrix *>(this); }
+    KOKKOS_INLINE_FUNCTION
     const Matrix &getAMatrix() const { return *static_cast<const Matrix *>(this); }
+    KOKKOS_INLINE_FUNCTION
     Vector &getXVector() { return x_; }
+    KOKKOS_INLINE_FUNCTION
     const Vector &getXVector() const { return x_; }
+    KOKKOS_INLINE_FUNCTION
     Vector &getBVector() { return b_; }
+    KOKKOS_INLINE_FUNCTION
     const Vector &getBVector() const { return b_; }
+    KOKKOS_INLINE_FUNCTION
     Vector &getRVector() { return r_; }
     const Vector &getRVector() const { return r_; }
 
@@ -119,17 +127,17 @@ public:
 
     Index nCoefficients() const
     {
-        return graph_->nOwnedNodes();
+        return graph_.nOwnedNodes();
     }
 
     Index nGhostCoefficients() const
     {
-        return graph_->nGhostNodes();
+        return graph_.nGhostNodes();
     }
 
     Index nGlobalCoefficients() const
     {
-        return graph_->nGlobalRows();
+        return graph_.nGlobalRows();
     }
 
     LUData& getLUData()
@@ -163,7 +171,7 @@ public:
         data.sum_byte *= sizeof(TReal);
 
         // integer data
-        this->graph_->getMemoryFootprint(connectivity);
+        this->graph_.getMemoryFootprint(connectivity);
     }
 
     void serialize(const std::string basename = "coeffs") const
@@ -175,7 +183,7 @@ public:
         std::ofstream fout(fname.str(), std::ios::binary);
 
         // graph
-        this->graph_->serialize(fout);
+        this->graph_.serialize(fout);
 
         // coefficients (always write 64-bit)
         uint64_t v64;

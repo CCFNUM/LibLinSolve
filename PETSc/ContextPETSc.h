@@ -297,8 +297,8 @@ int ContextPETSc<N>::createAIJ_()
     std::vector<PetscInt> o_nnz(n * BLOCKSIZE, 0);
     for (Index i = 0; i < n; i++)
     {
-        const Index row_nnz_owned = A.getGraph()->nnzOwned(i);
-        const Index row_nnz_ghost = A.getGraph()->nnzGhost(i);
+        const Index row_nnz_owned = A.getGraph().nnzOwned(i);
+        const Index row_nnz_ghost = A.getGraph().nnzGhost(i);
         for (Index k = 0; k < BLOCKSIZE; k++)
         {
             d_nnz[i * BLOCKSIZE + k] = BLOCKSIZE * row_nnz_owned;
@@ -341,7 +341,7 @@ int ContextPETSc<N>::copyCoefficients_()
     {
         matrixLayout::blockRowToRowMajor(i,
                                          A,
-                                         A.getGraph()->rowGlobalIndices(i),
+                                         A.getGraph().rowGlobalIndices(i),
                                          row_nnz,
                                          row_idx,
                                          col_idx,

@@ -72,7 +72,7 @@ public:
             const auto& coeffs = ctx_->getCoefficients();
             coeffs.getMemoryFootprint(data, connectivity);
             const bool reduced =
-                coeffs.getGraph()->getLayout() & GraphLayout::Stencil__Reduced;
+                coeffs.getGraph().getLayout() & GraphLayout::Stencil__Reduced;
 
             // clang-format off
             auto& cout = ctx_->cout();

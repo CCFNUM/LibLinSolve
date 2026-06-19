@@ -394,7 +394,7 @@ void ContextHYPRE<N>::copyLocalToHYPRE_()
     {
         matrixLayout::blockRowToRowMajor(i,
                                          A,
-                                         A.getGraph()->rowGlobalIndices(i),
+                                         A.getGraph().rowGlobalIndices(i),
                                          row_nnz,
                                          row_idx,
                                          col_idx,

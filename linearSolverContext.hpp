@@ -88,7 +88,7 @@ std::string Context<N>::info(std::ostream& os, const char* prefix) const
         os << pfx << '\t' << "Matrix blocksize: " << BLOCKSIZE << '\n';
         MemoryFootprint data, connectivity;
         coeffs_->getMemoryFootprint(data, connectivity);
-        const bool reduced = coeffs_->getGraph()->getLayout() & GraphLayout::Stencil__Reduced;
+        const bool reduced = coeffs_->getGraph().getLayout() & GraphLayout::Stencil__Reduced;
         os << pfx << '\t' << "Matrix fp data:   " << data.sum_byte / MemoryFootprint::BYTE_DIVIDE << " MB\n";
         os << pfx << '\t' << "Matrix int data:  " << connectivity.sum_byte / MemoryFootprint::BYTE_DIVIDE << " MB\n";
         os << pfx << '\t' << "Reduced stencil:  " << std::string(reduced ? "true" : "false") << '\n';

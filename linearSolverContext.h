@@ -120,25 +120,25 @@ public:
     GraphLayout getLayout() const
     {
         assert(coeffs_);
-        return coeffs_->getGraph()->getLayout();
+        return coeffs_->getGraph().getLayout();
     }
 
     MPI_Comm getCommunicator() const
     {
         assert(coeffs_);
-        return coeffs_->getGraph()->getCommunicator();
+        return coeffs_->getGraph().getCommunicator();
     }
 
     int commRank() const
     {
         assert(coeffs_);
-        return coeffs_->getGraph()->commRank();
+        return coeffs_->getGraph().commRank();
     }
 
     int commSize() const
     {
         assert(coeffs_);
-        return coeffs_->getGraph()->commSize();
+        return coeffs_->getGraph().commSize();
     }
 
     size_t getCallCount() const
