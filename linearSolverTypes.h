@@ -7,6 +7,10 @@
 
 #include <cstdint>
 
+// FIXME [faw 2026-06-23]: this is the column index type under Kokkos!  With the
+// RowIndex and ColINdex typedefs below the TGraphIndex should not be used
+// anywhere except possibly in this file for readability.  It can be #undef'ed
+// at the end.
 #ifdef GRAPH_INDEX_64BIT
 typedef int64_t TGraphIndex;
 #else
@@ -31,11 +35,17 @@ using AccelDeviceType = Kokkos::Device<AccelExecSpace, AccelMemorySpace>;
 // using CRSMatrixType = KokkosSparse::
 //     CrsMatrix<TRealSolver, TGraphIndex, AccelDeviceType, void, TGraphIndex>;
 using CRSMatrixType = KokkosSparse::Experimental::
-    BsrMatrix<TRealSolver, TGraphIndex, AccelDeviceType, void, TGraphIndex>;
+    BsrMatrix<TRealSolver, TGraphIndex, AccelDeviceType>;
 
 using CRSGraphType = typename CRSMatrixType::staticcrsgraph_type;
-using RowPtrView = typename CRSGraphType::row_map_type;
+using RowIndex = typename CRSGraphType::size_type;
+using ColIndex = typename CRSGraphType::data_type; // used for Index type alias
+using RowPtrView = Kokkos::View<RowIndex*,
+                                typename CRSGraphType::array_layout,
+                                typename CRSGraphType::device_type,
+                                typename CRSGraphType::memory_traits>;
 using IndexView = typename CRSGraphType::entries_type;
+using RowPtrViewHost = typename RowPtrView::HostMirror;
 using IndexViewHost = typename IndexView::HostMirror;
 
 using ScalarView = typename CRSMatrixType::values_type;

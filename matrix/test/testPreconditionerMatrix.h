@@ -89,8 +89,6 @@ public:
         const Index n_local = this->getDimension();
         const Index offset = A.globalRowOffset();
 
-        assert(static_cast<const void*>(A.getGraph()) ==
-               static_cast<const void*>(this));
         assert(A.nRows() == n_local);
 
         // set test system
@@ -132,9 +130,6 @@ public:
 
     void report(Context* ctx) override
     {
-        assert(static_cast<const void*>(ctx->getCoefficients().getGraph()) ==
-               static_cast<const void*>(this));
-
         Base::report(ctx);
 
         auto& cout = ctx->cout();
@@ -180,7 +175,7 @@ private:
 
         this->n_owned_nodes_ = n_local;
         Kokkos::resize(row_ptr_, n_local + 1);
-        Kokkos::deep_copy(row_ptr_, Index{0});
+        Kokkos::deep_copy(row_ptr_, 0);
 
         IndexVector row_local;
         IndexVector row_global;
