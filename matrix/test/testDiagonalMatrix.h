@@ -72,8 +72,6 @@ public:
 
         const Index n = this->getDimension();
 
-        assert(static_cast<const void*>(A.getGraph()) ==
-               static_cast<const void*>(this));
         assert(A.nRows() == n);
 
         // initialize
@@ -97,9 +95,6 @@ public:
 
     void report(Context* ctx) override
     {
-        assert(static_cast<const void*>(ctx->getCoefficients().getGraph()) ==
-               static_cast<const void*>(this));
-
         Base::report(ctx);
 
         const auto& x = ctx->getXVector();

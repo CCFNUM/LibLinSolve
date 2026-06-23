@@ -328,7 +328,7 @@ void CRSNodeGraph::deserialize(std::ifstream& in)
     for (size_t i = 0; i < row_ptr_h_.size(); i++)
     {
         in.read(p64, sizeof(uint64_t));
-        row_ptr_h_[i] = static_cast<Index>(v64);
+        row_ptr_h_[i] = static_cast<RowIndex>(v64);
     }
     for (size_t i = 0; i < primary_indices_h_.size(); i++)
     {
@@ -409,7 +409,7 @@ void CRSNodeGraph::computePackInfos_()
     const auto global_idx = this->globalIndicesHost();
     for (Index i = 0; i < n_owned_nodes_; i++)
     {
-        for (Index j = row_ptr_h_[i]; j < row_ptr_h_[i + 1]; j++)
+        for (RowIndex j = row_ptr_h_[i]; j < row_ptr_h_[i + 1]; j++)
         {
             const Index j_local = local_idx[j];
             if (j_local >= n_owned_nodes_) // a ghost
@@ -585,7 +585,7 @@ void CRSNodeGraph::computeDiagonalIndices_()
     const auto local_idx = this->localIndicesHost();
     for (Index i = 0; i < n_owned_nodes_; i++)
     {
-        for (Index J = row_ptr_h_[i]; J < row_ptr_h_[i + 1]; J++)
+        for (RowIndex J = row_ptr_h_[i]; J < row_ptr_h_[i + 1]; J++)
         {
             if (i == local_idx[J])
             {
@@ -629,7 +629,7 @@ void CRSNodeGraph::computeRowNonZeros_()
     const auto local_idx = this->localIndicesHost();
     for (Index i = 0; i < n_owned_nodes_; i++)
     {
-        for (Index J = row_ptr_h_[i]; J < row_ptr_h_[i + 1]; J++)
+        for (RowIndex J = row_ptr_h_[i]; J < row_ptr_h_[i + 1]; J++)
         {
             if (local_idx[J] < n_owned_nodes_)
             {
@@ -737,8 +737,7 @@ void CRSNodeGraph::resetGraph_()
     global_number_nodes_ = ~0;
     global_number_indices_ = ~0ull;
 
-    // DAVEKOKKOS: should be row_map_type_
-    row_ptr_ = IndexView{"row_ptr", 0};
+    row_ptr_ = RowPtrView{"row_ptr", 0};
     primary_indices_ = IndexView{"primary_indices", 0};
     secondary_indices_ = IndexView{"secondary_indices", 0};
 

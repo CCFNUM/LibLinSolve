@@ -134,7 +134,7 @@ class CRSNodeGraph
 public:
     // Main graph index type.  This type is used to compute differences and
     // should be a signed integral.
-    using Index = TGraphIndex;
+    using Index = TGraphIndex; // == ColIndex == staticcrsgraph_type::data_type
     using IndexView = ::IndexView;
     using IndexViewHost = ::IndexViewHost;
     using IndexSubview = ::IndexSubview;
@@ -224,15 +224,14 @@ public:
         return global_number_indices_;
     }
 
-    // DAVEKOKKOS: this should be a row_map_type
-    KOKKOS_INLINE_FUNCTION const IndexView& offsets() const
+    KOKKOS_INLINE_FUNCTION const RowPtrView& offsets() const
     {
         assert(is_built_);
         assert(row_ptr_.size() > 1);
         return row_ptr_;
     }
 
-    inline const IndexViewHost& offsetsHost() const
+    inline const RowPtrViewHost& offsetsHost() const
     {
         assert(is_built_);
         assert(row_ptr_h_.size() > 1);
@@ -391,14 +390,13 @@ protected:
     bool is_built_;
 
     // CRS data structures
-    // DAVEKOKKOS: row_ptr_ should be a row_map_type!!!
-    IndexView row_ptr_{"row_ptr", 0}; // row offsets
+    RowPtrView row_ptr_{"row_ptr", 0}; // row offsets
     IndexView primary_indices_{"primary_indices",
                                0}; // main column index order (sorted)
     IndexView secondary_indices_{"secondary_indices",
                                  0}; // complement column index order
     // host mirrors
-    IndexViewHost row_ptr_h_;
+    RowPtrViewHost row_ptr_h_;
     IndexViewHost primary_indices_h_;
     IndexViewHost secondary_indices_h_;
 

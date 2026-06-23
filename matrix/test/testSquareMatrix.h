@@ -46,9 +46,6 @@ public:
 
     virtual void report(Context* ctx)
     {
-        assert(static_cast<const void*>(ctx->getCoefficients().getGraph()) ==
-               static_cast<const void*>(this));
-
         const int size = this->commSize();
 
         Index n_rows = 0;

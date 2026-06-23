@@ -83,8 +83,7 @@ public:
         return graph_.offsets().data();
     }
 
-    // DAVEKOKKOS: should be row_map_type_!!
-    KOKKOS_INLINE_FUNCTION const IndexView& offsetsRef() const
+    KOKKOS_INLINE_FUNCTION const RowPtrView& offsetsRef() const
     {
         return graph_.offsets();
     }
