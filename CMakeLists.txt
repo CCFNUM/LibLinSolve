@@ -38,12 +38,8 @@ else()
     message(FATAL_ERROR "Cannot determine library version")
 endif()
 
+option(MPI_CXX_SKIP_MPICXX "Skip MPI C++ bindings" ON)
 find_package(MPI REQUIRED)
-# TODO: [fab4100@posteo.net; 2025-05-15] how to ask CMake which MPI
-# implementation it has found?  Alternatively say explicitly which
-# implementation to use like in Meson build definitions.
-add_compile_options("-DOMPI_SKIP_MPICXX")
-add_compile_options("-DMPICH_SKIP_MPICXX")
 
 if(USE_KOKKOS)
     message(STATUS "Enabling Kokkos support")
@@ -113,10 +109,9 @@ set_target_properties(${libLinSolve}
 )
 target_include_directories(${libLinSolve}
     PRIVATE
-    ${MPI_INCLUDE_PATH}
     ${libLinSolveIncludes}
 )
-target_link_libraries(${libLinSolve} PRIVATE ${MPI_CXX_LIBRARIES})
+target_link_libraries(${libLinSolve} PRIVATE MPI::MPI_C)
 
 if(USE_KOKKOS)
     target_link_libraries(${libLinSolve} PRIVATE Kokkos::kokkos)
