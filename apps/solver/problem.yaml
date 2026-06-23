@@ -5,8 +5,8 @@ solver: trilinos
 # solver: gmres
 # solver: amgsolver
 matrix:
-    # type: diagonal
-    type: preconditioner
+    type: diagonal
+    # type: preconditioner
     # type: fromfile
     # filename: flow_system.bin
     n: 1000

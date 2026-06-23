@@ -24,8 +24,11 @@ public:
     using Base::BLOCKSIZE;
     using Base::diagonal_row_offset_;
     using Base::primary_indices_;
+    using Base::primary_indices_h_;
     using Base::row_ptr_;
+    using Base::row_ptr_h_;
     using Base::secondary_indices_;
+    using Base::secondary_indices_h_;
 
     using Index = typename Base::Index;
     using Context = typename Base::Context;
@@ -65,6 +68,7 @@ public:
         this->buildGraph();
     }
 
+    // FIXME [faw 2026-06-23]: WORKS ONLY ON HOST CURRENTLY!!
     void assemble(Context* ctx) override
     {
         Matrix& A = ctx->getAMatrix();
@@ -161,10 +165,10 @@ private:
 
         this->n_owned_nodes_ = n;
         Kokkos::resize(row_ptr_, n + 1);
-        Kokkos::deep_copy(row_ptr_, Index{0});
+        row_ptr_h_ = Kokkos::create_mirror_view(Kokkos::HostSpace(), row_ptr_);
         for (Index i = 0; i < n; i++)
         {
-            row_ptr_[i + 1] = i + 1;
+            row_ptr_h_[i + 1] = i + 1;
         }
 
         this->computeGlobalRowOffset_();
@@ -174,24 +178,23 @@ private:
             column_shift = this->global_row_offset_;
         }
 
-        IndexVector primary_idx(n);
-        IndexVector secondary_idx(n);
+        Kokkos::resize(primary_indices_, n);
+        primary_indices_h_ =
+            Kokkos::create_mirror_view(Kokkos::HostSpace(), primary_indices_);
+        Kokkos::resize(secondary_indices_, n);
+        secondary_indices_h_ =
+            Kokkos::create_mirror_view(Kokkos::HostSpace(), secondary_indices_);
         assert(this->nIndices() == n); // nnz == n
         for (Index i_local = 0; i_local < this->nIndices(); i_local++)
         {
             const Index i_global = i_local + this->global_row_offset_;
-            primary_idx[i_local] = i_local + column_shift;
-            secondary_idx[i_local] = i_global - column_shift;
+            primary_indices_h_[i_local] = i_local + column_shift;
+            secondary_indices_h_[i_local] = i_global - column_shift;
         }
 
-        // host only:
-        Kokkos::resize(primary_indices_, n);
-        Kokkos::resize(secondary_indices_, n);
-        std::copy(
-            primary_idx.begin(), primary_idx.end(), primary_indices_.data());
-        std::copy(secondary_idx.begin(),
-                  secondary_idx.end(),
-                  secondary_indices_.data());
+        Kokkos::deep_copy(row_ptr_, row_ptr_h_);
+        Kokkos::deep_copy(primary_indices_, primary_indices_h_);
+        Kokkos::deep_copy(secondary_indices_, secondary_indices_h_);
     }
 
     void computePackInfos_() override
