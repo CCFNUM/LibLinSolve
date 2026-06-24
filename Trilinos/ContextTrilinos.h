@@ -98,6 +98,10 @@ private:
     {
         using LOrdinal = int;  // Tpetra local ordinal type
         using GOrdinal = long; // Tpetra local ordinal type
+
+        // FIXME [faw 2026-06-12]: check the difference between these two node
+        // types:
+        // using Node = Kokkos::DefaultExecutionSpace::device_type;
         using Node = Tpetra::Map<>::node_type;
         using Map = Tpetra::Map<LOrdinal, GOrdinal, Node>;
 
@@ -112,6 +116,21 @@ private:
         using PCFactory = Ifpack2::Factory;
     };
 
+    struct LocalSystem
+    {
+        using crs_size_t = typename CRSRowMatrixType::size_type;
+        using crs_rowmap_t =
+            typename CRSRowMatrixType::row_map_type::non_const_type;
+        using crs_entries_t =
+            typename CRSRowMatrixType::index_type::non_const_type;
+        using crs_values_t =
+            typename CRSRowMatrixType::values_type::non_const_type;
+        using crs_exe_space_t = typename CRSRowMatrixType::execution_space;
+        using policy_t =
+            typename Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>;
+        using member_t = typename policy_t::member_type;
+    };
+
 public:
     ContextTrilinos(const std::string& family,
                     const std::string& system_name,
@@ -122,8 +141,7 @@ public:
                      system_name,
                      graph,
                      node),
-          matrix_initialized_(false), use_preconditioner_(false),
-          preconditioner_initialized_(false), belos_solver_name_("GMRES"),
+          use_preconditioner_(false), belos_solver_name_("GMRES"),
           preconditioner_type_("RELAXATION")
     {
         setup_(node);
@@ -138,8 +156,7 @@ public:
                      system_name,
                      coeffs,
                      node),
-          matrix_initialized_(false), use_preconditioner_(false),
-          preconditioner_initialized_(false), belos_solver_name_("GMRES"),
+          use_preconditioner_(false), belos_solver_name_("GMRES"),
           preconditioner_type_("RELAXATION")
     {
         setup_(node);
@@ -152,7 +169,16 @@ public:
 
     void solvePrologue(const int solver_id, const bool preconditioner) override
     {
+        // NOTE [faw 2026-06-24]: this assumes the connectivity of the matrix
+        // does not change (otherwise all of the system has to be rebuilt every
+        // non-linear iteration
         copyLocalToTpetra_();
+
+        if (use_preconditioner_)
+        {
+            preconditioner_->compute();
+        }
+
         Context<N>::solvePrologue(solver_id, preconditioner);
     }
 
@@ -227,19 +253,21 @@ private:
     Teuchos::RCP<Teuchos::ParameterList> belos_params_;
     Teuchos::ParameterList preconditioner_params_;
 
-    bool matrix_initialized_;
+    // local CRS row-based storage
+    typename LocalSystem::crs_rowmap_t rowcrs_row_ptr_;
+    typename LocalSystem::crs_entries_t rowcrs_indices_;
+    typename LocalSystem::crs_values_t rowcrs_values_;
+
     bool use_preconditioner_;
-    bool preconditioner_initialized_;
     std::string belos_solver_name_;
     std::string preconditioner_type_;
 
     void setup_(const YAML::Node* node)
     {
+        configureFromYaml_(node);
         buildCommunicator_();
         buildMap_();
-        buildMatrix_();
-        buildVectors_();
-        configureFromYaml_(node);
+        createSystem_();
     }
 
     void configureFromYaml_(const YAML::Node* node)
@@ -299,24 +327,14 @@ private:
                 }
             }
         }
-
-        if (use_preconditioner_)
-        {
-            if (preconditioner_type_ == "RELAXATION" &&
-                !preconditioner_params_.isParameter("relaxation: type"))
-            {
-                preconditioner_params_.set("relaxation: type", "Jacobi");
-            }
-            createPreconditioner_();
-        }
     }
 
     void buildCommunicator_()
     {
         if (comm_.is_null())
         {
-            auto raw = Teuchos::opaqueWrapper(this->getCommunicator());
-            comm_ = Teuchos::rcp(new Teuchos::MpiComm<int>(raw));
+            comm_ = Teuchos::rcp(new Teuchos::MpiComm<int>(
+                Teuchos::opaqueWrapper(this->getCommunicator())));
         }
     }
 
@@ -324,6 +342,7 @@ private:
     {
         const Matrix& A = this->getAMatrix();
         const Index n_local = A.nRows();
+
         Teuchos::Array<typename Trilinos::GOrdinal> gids(n_local * N);
         for (Index i = 0; i < n_local; ++i)
         {
@@ -341,37 +360,51 @@ private:
             comm_));
     }
 
-    void buildMatrix_()
+    void createSystem_()
     {
-        // Compute the number of non-zeros per row from the graph
-        // Each block row has nnz blocks, and each block is N x N
-        const Matrix& A = this->getAMatrix();
-        const Index n_local = A.nRows();
+        using crs_size_t = typename LocalSystem::crs_size_t;
+        using crs_exe_space_t = typename LocalSystem::crs_exe_space_t;
 
-        // Create array of nnz per scalar row (each block row becomes N scalar
-        // rows)
-        Teuchos::ArrayRCP<size_t> nnz_per_row(n_local * N);
-        for (Index i = 0; i < n_local; ++i)
-        {
-            // Number of block columns in this row
-            const size_t block_nnz = A.getGraph().rowGlobalIndices(i).size();
-            // Each scalar row within this block row has block_nnz * N entries
-            const size_t scalar_nnz = block_nnz * N;
-            for (Index k = 0; k < static_cast<Index>(N); ++k)
-            {
-                nnz_per_row[i * N + k] = scalar_nnz;
-            }
-        }
+        static_assert(
+            std::is_same_v<crs_exe_space_t,
+                           typename CRSMatrixType::execution_space>,
+            "BsrMatrix and CsrMatrix must be in same execution space");
 
-        matrix_ =
-            Teuchos::rcp(new typename Trilinos::Matrix(map_, nnz_per_row()));
-        matrix_initialized_ = false;
-    }
+        static_assert(std::is_same_v<CRSMatrixType, CRSBlockMatrixType>,
+                      "getAMatrix().getCrsMatrix() must be a BsrMatrix");
 
-    void buildVectors_()
-    {
+        const CRSMatrixType block_A = this->getAMatrix().getCrsMatrix();
+        const crs_size_t blockDim = block_A.blockDim();
+        const crs_size_t numBlockRows = block_A.numRows();
+        const crs_size_t numBlockCols = block_A.numCols();
+        const crs_size_t numBlockEntries = block_A.nnz();
+        const crs_size_t numCrsRows = numBlockRows * blockDim;
+        const crs_size_t numCrsCols = numBlockCols * blockDim;
+        const crs_size_t numCrsEntries = numBlockEntries * blockDim * blockDim;
+
+        rowcrs_row_ptr_ =
+            typename LocalSystem::crs_rowmap_t{"crsRowMap", numCrsRows + 1};
+        rowcrs_indices_ =
+            typename LocalSystem::crs_entries_t{"crsEntries", numCrsEntries};
+        rowcrs_values_ =
+            typename LocalSystem::crs_values_t{"crsValues", numCrsEntries};
+
+        matrix_ = Teuchos::rcp(
+            new typename Trilinos::Matrix(map_, map_, this->convertToCrs_()));
+
+        // create tpetra vectors
         x_vec_ = Teuchos::rcp(new typename Trilinos::Vector(map_));
         b_vec_ = Teuchos::rcp(new typename Trilinos::Vector(map_));
+
+        if (use_preconditioner_)
+        {
+            if (preconditioner_type_ == "RELAXATION" &&
+                !preconditioner_params_.isParameter("relaxation: type"))
+            {
+                preconditioner_params_.set("relaxation: type", "Jacobi");
+            }
+            createPreconditioner_();
+        }
     }
 
     void destroySystem_()
@@ -379,12 +412,14 @@ private:
         belos_solver_ = Teuchos::null;
         belos_problem_ = Teuchos::null;
         preconditioner_ = Teuchos::null;
+        rowcrs_row_ptr_ = typename LocalSystem::crs_rowmap_t{};
+        rowcrs_indices_ = typename LocalSystem::crs_entries_t{};
+        rowcrs_values_ = typename LocalSystem::crs_values_t{};
         matrix_ = Teuchos::null;
         x_vec_ = Teuchos::null;
         b_vec_ = Teuchos::null;
         map_ = Teuchos::null;
         comm_ = Teuchos::null;
-        preconditioner_initialized_ = false;
     }
 
     void createBelosSolver_()
@@ -396,12 +431,11 @@ private:
     void createPreconditioner_()
     {
         typename Trilinos::PCFactory factory;
-        const std::string factory_name =
-            preconditioner_type_.empty() ? "RELAXATION" : preconditioner_type_;
         preconditioner_ = factory.template create<typename Trilinos::Matrix>(
-            factory_name, matrix_);
+            preconditioner_type_.empty() ? "RELAXATION" : preconditioner_type_,
+            matrix_);
         preconditioner_->setParameters(preconditioner_params_);
-        preconditioner_initialized_ = false;
+        preconditioner_->initialize();
     }
 
     void addPreconditionerParameter_(const std::string& key,
@@ -442,107 +476,134 @@ private:
 
     void copyLocalToTpetra_()
     {
-        copyMatrixToTpetra_();
+        // A
+        {
+            matrix_->resumeFill();
+            auto dst = matrix_->getLocalMatrixDevice().values;
+            auto src = this->convertToCrs_().values;
+            Kokkos::deep_copy(dst, src);
+            matrix_->fillComplete();
+        }
 
-        Vector& x_native = this->coeffs_->getXVector();
-        Vector& b_native = this->coeffs_->getBVector();
-        auto x_view = x_vec_->get1dViewNonConst();
-        auto b_view = b_vec_->get1dViewNonConst();
-        const size_t n_local = static_cast<size_t>(map_->getLocalNumElements());
-        for (std::size_t i = 0; i < n_local; ++i)
-        {
-            x_view[i] = x_native[i];
-        }
-        for (std::size_t i = 0; i < n_local; ++i)
-        {
-            b_view[i] = b_native[i];
-        }
-        // std::copy_n(x_native.begin(), n_local, x_view.begin());
-        // std::copy_n(b_native.begin(), n_local, b_view.begin());
+        // NOTE [faw 2026-06-12]: cannot use zero-copy paradigm for Tpetra
+        // vectors because internally they are stored in a multi-vector layout
+        // which is not a simple 1D layout.
+        //
+        // RHS b
+        const Vector& src = this->coeffs_->getBVector();
+        auto b = b_vec_->getLocalViewDevice(Tpetra::Access::OverwriteAll);
+        Kokkos::deep_copy(Kokkos::subview(b, Kokkos::ALL, 0), src);
+
+        // solution x
+        x_vec_->putScalar(0.0);
     }
 
     void copyTpetraToLocal_()
     {
-        auto x_view = x_vec_->get1dView();
-        Vector& x_native = this->coeffs_->getXVector();
-        const size_t n_local = static_cast<size_t>(map_->getLocalNumElements());
-        // std::copy_n(x_view.begin(), n_local, x_native.begin());
-        for (std::size_t i = 0; i < n_local; ++i)
-        {
-            x_native[i] = x_view[i];
-        }
+        const auto src = x_vec_->getLocalViewDevice(Tpetra::Access::ReadOnly);
+        Vector& x = this->coeffs_->getXVector();
+        Kokkos::deep_copy(x, Kokkos::subview(src, Kokkos::ALL, 0));
     }
 
-    void copyMatrixToTpetra_()
+    // NOTE [faw 2026-06-22]: Code taken from Kokkos 5.0.0 (Kokkos 4.7.X
+    // does not have this method yet)
+    CRSRowMatrixType convertToCrs_() const
     {
-        const Matrix& A = this->getAMatrix();
-        std::vector<Index> row_nnz;
-        std::vector<Index> row_idx;
-        std::vector<Index> col_idx;
-        std::vector<DataType> values;
-        const Index n_rows = A.nRows();
+        using crs_size_t = typename LocalSystem::crs_size_t;
 
-        // Resume fill mode if matrix was previously finalized
-        // After resumeFill(), only replaceGlobalValues() is allowed (not
-        // insert)
-        if (matrix_initialized_)
-        {
-            matrix_->resumeFill();
-        }
+        const CRSMatrixType block_A = this->getAMatrix().getCrsMatrix();
 
-        using GOrdinal = typename Trilinos::GOrdinal;
-        for (Index i = 0; i < n_rows; ++i)
-        {
-            const auto cols = A.getGraph().rowGlobalIndices(i);
-            matrixLayout::blockRowToRowMajor(
-                i, A, cols, row_nnz, row_idx, col_idx, values);
-            const Index block_nnz = row_nnz.front();
-            std::vector<GOrdinal> column_ids(block_nnz);
-            for (Index k = 0; k < static_cast<Index>(N); ++k)
-            {
-                const GOrdinal row = static_cast<GOrdinal>(row_idx[k]);
-                for (Index j = 0; j < block_nnz; ++j)
+        // Get size/dimension info from this Bsr. We will use crs_size_t for all
+        // int types
+        const crs_size_t blockDim = block_A.blockDim();
+        const crs_size_t blockSize = blockDim * blockDim;
+        const crs_size_t numBlockRows = block_A.numRows();
+        const crs_size_t numBlockCols = block_A.numCols();
+        const crs_size_t numBlockEntries = block_A.nnz();
+
+        // Get graph and values from this Bsr
+        const auto blockRowMap = block_A.graph.row_map;
+        const auto blockEntries = block_A.graph.entries;
+        const auto blockValues = block_A.values;
+
+        // Compute Csr row/col/entry sizes by multiplying Bsr sizes by block
+        // dimension
+        const crs_size_t numCrsRows = numBlockRows * blockDim;
+        const crs_size_t numCrsCols = numBlockCols * blockDim;
+        const crs_size_t numCrsEntries = numBlockEntries * blockSize;
+
+        // Create the policy, we have 3 levels of parallelism available in the
+        // algorithm
+        const crs_size_t maxvec = LocalSystem::policy_t::vector_length_max();
+        const crs_size_t veclen = (blockDim <= maxvec) ? blockDim : maxvec;
+        typename LocalSystem::policy_t policy(
+            numBlockRows, Kokkos::AUTO(), veclen);
+
+        // Fill CrsMatrix row map, entries, and values
+        Kokkos::parallel_for(
+            "ConvertBsrToCrs",
+            policy,
+            KOKKOS_LAMBDA(const typename LocalSystem::member_t& team) {
+                const crs_size_t blockRow = team.league_rank();
+                const crs_size_t blockRowStart = blockRowMap(blockRow);
+                const crs_size_t blockRowEnd = blockRowMap(blockRow + 1);
+                const crs_size_t blockRowCount = blockRowEnd - blockRowStart;
+
+                // Iterate over block entries in this row.
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(team, blockRowStart, blockRowEnd),
+                    [&](const crs_size_t& blockNnz)
                 {
-                    column_ids[j] =
-                        static_cast<GOrdinal>(col_idx[k * block_nnz + j]);
-                }
-                Teuchos::ArrayView<const GOrdinal> column_view(
-                    column_ids.data(), static_cast<int>(block_nnz));
-                Teuchos::ArrayView<const DataType> value_view(
-                    &values[k * block_nnz], static_cast<int>(block_nnz));
-                if (!matrix_initialized_)
+                    const crs_size_t blockCol = blockEntries(blockNnz);
+                    const crs_size_t blockNum = blockNnz - blockRowStart;
+
+                    // Iterate over block dim to get the unblocked rows
+                    Kokkos::parallel_for(
+                        Kokkos::ThreadVectorRange(team, blockDim),
+                        [&](const crs_size_t& blockRowOffset)
+                    {
+                        const crs_size_t crsRow =
+                            blockRow * blockDim + blockRowOffset;
+                        // Each unblocked row has blockRowCount * blockDim items
+                        const crs_size_t crsRowStart =
+                            blockRowStart * blockSize +
+                            blockRowCount * blockDim * blockRowOffset;
+                        rowcrs_row_ptr_(crsRow) = crsRowStart;
+
+                        // Iterate over block dim to get the unblocked cols
+                        for (crs_size_t blockColOffset = 0;
+                             blockColOffset < blockDim;
+                             ++blockColOffset)
+                        {
+                            const crs_size_t crsCol =
+                                blockCol * blockDim + blockColOffset;
+                            const crs_size_t crsNnz = crsRowStart +
+                                                      blockNum * blockDim +
+                                                      blockColOffset;
+                            rowcrs_indices_(crsNnz) = crsCol;
+                            rowcrs_values_(crsNnz) = blockValues(
+                                blockNnz * blockSize +
+                                blockRowOffset * blockDim + blockColOffset);
+                        }
+                    });
+                });
+
+                // Finalize CrsMatrix row map
+                if (blockRow == numBlockRows - 1)
                 {
-                    matrix_->insertGlobalValues(row, column_view, value_view);
+                    rowcrs_row_ptr_(numCrsRows) =
+                        blockRowMap(numBlockRows) * blockSize;
                 }
-                else
-                {
-                    // After resumeFill(), we can only replace values in
-                    // existing positions
-                    matrix_->replaceGlobalValues(row, column_view, value_view);
-                }
-            }
-        }
+            });
 
-        // Always call fillComplete after modifying values
-        // Use explicit domain and range maps for consistency across multiple
-        // calls
-        matrix_->fillComplete(map_, map_);
-
-        if (!matrix_initialized_)
-        {
-            matrix_initialized_ = true;
-            if (use_preconditioner_ && !preconditioner_.is_null())
-            {
-                preconditioner_->initialize();
-                preconditioner_initialized_ = true;
-            }
-        }
-
-        if (use_preconditioner_ && preconditioner_initialized_ &&
-            !preconditioner_.is_null())
-        {
-            preconditioner_->compute();
-        }
+        // Construct CrsMatrix
+        return CRSRowMatrixType("convertedFromBsrMatrix",
+                                numCrsRows,
+                                numCrsCols,
+                                rowcrs_indices_.extent(0),
+                                rowcrs_values_,
+                                rowcrs_row_ptr_,
+                                rowcrs_indices_);
     }
 };
 
