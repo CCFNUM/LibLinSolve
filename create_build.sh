@@ -34,7 +34,9 @@ mkdir -p "${build_dir}"
 
 if $require_uenv; then
     cat <<EOF >"${build_dir}/build_env.sh"
-if [ -z "\${UENV_MOUNT_LIST}" ] && [ -z "\${UENV_VIEW}" ]; then
+export N_CORES=16
+if ! grep -q '/user-environment' /proc/mounts; then
+    unset UENV_VIEW UENV_ARG UENV_MOUNT_LIST UENV_TELEMETRY
     export BUILD_PREFIX='uenv run ${UENV_VIEW:+--view ${UENV_VIEW##*:}} ${UENV_LABEL:-$UENV_ARG} -- '
 fi
 EOF
