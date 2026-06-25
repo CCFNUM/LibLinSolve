@@ -26,8 +26,7 @@ void CRSNodeGraph::buildGraph()
     buildGraph_();
 
     assert(row_ptr_.size() > 1);
-    assert(static_cast<Index>(primary_indices_h_.size()) ==
-           row_ptr_h_(row_ptr_h_.extent(0) - 1));
+    assert(primary_indices_h_.size() == row_ptr_h_(row_ptr_h_.extent(0) - 1));
     n_owned_nodes_ = static_cast<Index>(row_ptr_h_.size()) - 1;
     is_built_ = true;
 
@@ -51,7 +50,8 @@ void CRSNodeGraph::buildGraph()
     {
         const Index row_sum_nnz = nnzOwned(i) + nnzGhost(i);
         sum_nnz += row_sum_nnz;
-        assert(row_sum_nnz == row_ptr_h_[i + 1] - row_ptr_h_[i]);
+        assert(row_sum_nnz ==
+               static_cast<Index>(row_ptr_h_[i + 1] - row_ptr_h_[i]));
     }
     assert(sum_nnz == this->nIndices());
     // b.)
@@ -287,20 +287,27 @@ void CRSNodeGraph::serialize(std::ofstream& out) const
     v64 = primary_indices_.size();
     out.write(p64, sizeof(uint64_t));
 
+    const auto row_ptr =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), row_ptr_);
+    const auto primary_indices = Kokkos::create_mirror_view_and_copy(
+        Kokkos::HostSpace(), primary_indices_);
+    const auto secondary_indices = Kokkos::create_mirror_view_and_copy(
+        Kokkos::HostSpace(), secondary_indices_);
+
     // data
-    for (size_t i = 0; i < row_ptr_h_.extent(0); ++i)
+    for (size_t i = 0; i < row_ptr.extent(0); ++i)
     {
-        v64 = row_ptr_h_(i);
+        v64 = row_ptr(i);
         out.write(p64, sizeof(uint64_t));
     }
-    for (size_t i = 0; i < primary_indices_h_.extent(0); ++i)
+    for (size_t i = 0; i < primary_indices.extent(0); ++i)
     {
-        v64 = primary_indices_h_(i);
+        v64 = primary_indices(i);
         out.write(p64, sizeof(uint64_t));
     }
-    for (size_t i = 0; i < secondary_indices_h_.extent(0); ++i)
+    for (size_t i = 0; i < secondary_indices.extent(0); ++i)
     {
-        v64 = secondary_indices_h_(i);
+        v64 = secondary_indices(i);
         out.write(p64, sizeof(uint64_t));
     }
 }

@@ -189,25 +189,31 @@ public:
         uint64_t v64;
         double fp64;
 
+        // get an updated host mirror of data
+        const auto lhs = Kokkos::create_mirror_view_and_copy(
+            Kokkos::HostSpace(), this->values_);
+        const auto rhs =
+            Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), this->b_);
+
         // header
         const char* p64 = reinterpret_cast<char*>(&v64);
         v64 = BLOCKSIZE;
         fout.write(p64, sizeof(uint64_t));
-        v64 = this->values_.size();
+        v64 = lhs.size();
         fout.write(p64, sizeof(uint64_t));
-        v64 = this->b_.size();
+        v64 = rhs.size();
         fout.write(p64, sizeof(uint64_t));
 
         // data
         p64 = reinterpret_cast<char*>(&fp64);
-        for (const DataType v : this->values_)
+        for (size_t i = 0; i < lhs.extent(0); ++i)
         {
-            fp64 = v;
+            fp64 = lhs(i);
             fout.write(p64, sizeof(double));
         }
-        for (const DataType v : this->b_)
+        for (size_t i = 0; i < rhs.extent(0); ++i)
         {
-            fp64 = v;
+            fp64 = rhs(i);
             fout.write(p64, sizeof(double));
         }
     }
