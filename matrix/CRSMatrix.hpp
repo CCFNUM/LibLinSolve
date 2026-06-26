@@ -344,9 +344,13 @@ typename CRSMatrix<N>::DataType norm__frobenius(const CRSMatrix<N>* A)
 {
     using TReal = CRSMatrix<N>::DataType;
     TReal norm = 0;
-    for (size_t i = 0; i < A->rowCols(i).size(); ++i)
+
+    // NOTE [faw 2026-06-26]: host only at the moment
+    const auto values = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+                                                            A->valuesRef());
+    for (size_t i = 0; i < values.extent(0); ++i)
     {
-        const TReal a_ij = A->valuesRef()[i];
+        const TReal a_ij = values(i);
         norm += a_ij * a_ij;
     }
 
