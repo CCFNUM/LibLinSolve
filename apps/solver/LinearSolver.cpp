@@ -214,8 +214,9 @@ int main(int argc, char* argv[])
                   << ctx->getAMatrix().norm() << '\n';
     }
 
-    std::cout << "BANDWIDTH: " << ctx->getAMatrix().bandwidth() << '\n';
-    std::cout << "PROFILE:   " << ctx->getAMatrix().profile() << '\n';
+    // TODO [faw 2026-06-26]: Kokkos support
+    // std::cout << "BANDWIDTH: " << ctx->getAMatrix().bandwidth() << '\n';
+    // std::cout << "PROFILE:   " << ctx->getAMatrix().profile() << '\n';
 
     solver->solve();
     solver->report();
