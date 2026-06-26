@@ -34,9 +34,6 @@ def main(args):
         lhs = np.fromfile(blob, dtype=np.double, count=lhs_size)
         rhs = np.fromfile(blob, dtype=np.double, count=rhs_size)
 
-        print(lhs[:10])
-        print(rhs[:10])
-
         assert rhs_size == n_owned_nodes
         assert lhs_size == indices_size
         assert row_ptr_size == n_owned_nodes + 1
@@ -52,12 +49,14 @@ rhs: mean: {rhs.mean():e}
       min: {rhs.min():e}
       std: {rhs.std():e}
       max: {rhs.max():e}
+      rms: {np.sqrt(np.sum(rhs**2) / rhs_size):e}
        L2: {np.linalg.norm(rhs):e}
 
 lhs: mean: {lhs.mean():e}
       min: {lhs.min():e}
       std: {lhs.std():e}
       max: {lhs.max():e}
+      rms: {np.sqrt(np.sum(lhs**2) / lhs_size):e}
        L2: {np.linalg.norm(lhs):e}""")
 
 
