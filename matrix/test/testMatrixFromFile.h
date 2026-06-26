@@ -59,11 +59,11 @@ public:
         assert(A.nRows() == n);
 
         auto a = A.valuesRef();
-        assert(a.size() == lhs_.size());
-        assert(b.size() == rhs_.size());
+        assert(a.extent(0) == lhs_.extent(0));
+        assert(b.extent(0) == rhs_.extent(0));
 
-        Kokkos::deep_copy(lhs_, a);
-        Kokkos::deep_copy(rhs_, b);
+        Kokkos::deep_copy(a, lhs_);
+        Kokkos::deep_copy(b, rhs_);
     }
 
     void report(Context* ctx) override
@@ -99,23 +99,26 @@ private:
         assert(blocksize == BLOCKSIZE);
 
         Kokkos::resize(lhs_, lhs_size);
-        Kokkos::deep_copy(lhs_, Index{0});
-        Kokkos::resize(rhs_, lhs_size);
-        Kokkos::deep_copy(rhs_, Index{0});
+        Kokkos::resize(rhs_, rhs_size);
+        auto lhs = Kokkos::create_mirror_view(lhs_);
+        auto rhs = Kokkos::create_mirror_view(rhs_);
 
         double fp64;
         char* p64 = reinterpret_cast<char*>(&fp64);
         for (size_t i = 0; i < lhs_.size(); i++)
         {
             fin.read(p64, sizeof(double));
-            lhs_[i] = static_cast<DataType>(fp64);
+            lhs(i) = static_cast<DataType>(fp64);
         }
         for (size_t i = 0; i < rhs_.size(); i++)
         {
             fin.read(p64, sizeof(double));
-            rhs_[i] = static_cast<DataType>(fp64);
+            rhs(i) = static_cast<DataType>(fp64);
         }
         fin.close();
+
+        Kokkos::deep_copy(lhs_, lhs);
+        Kokkos::deep_copy(rhs_, rhs);
 
         this->determine_n_ghosts_ = true;
     }
