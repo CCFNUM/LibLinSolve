@@ -277,22 +277,24 @@ void CRSNodeGraph::serialize(std::ofstream& out) const
     uint64_t v64; // always write 64-bit
     const char* p64 = reinterpret_cast<char*>(&v64);
 
-    // header
-    v64 = sizeof(Index); // size of index type
-    out.write(p64, sizeof(uint64_t));
-    v64 = n_owned_nodes_;
-    out.write(p64, sizeof(uint64_t));
-    v64 = row_ptr_.size();
-    out.write(p64, sizeof(uint64_t));
-    v64 = primary_indices_.size();
-    out.write(p64, sizeof(uint64_t));
-
     const auto row_ptr =
         Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), row_ptr_);
     const auto primary_indices = Kokkos::create_mirror_view_and_copy(
         Kokkos::HostSpace(), primary_indices_);
     const auto secondary_indices = Kokkos::create_mirror_view_and_copy(
         Kokkos::HostSpace(), secondary_indices_);
+
+    // header
+    v64 = sizeof(Index); // size of index type
+    out.write(p64, sizeof(uint64_t));
+    v64 = n_owned_nodes_;
+    out.write(p64, sizeof(uint64_t));
+    v64 = row_ptr.extent(0);
+    out.write(p64, sizeof(uint64_t));
+    v64 = primary_indices.extent(0);
+    out.write(p64, sizeof(uint64_t));
+
+    assert(primary_indices.extent(0) == secondary_indices.extent(0));
 
     // data
     for (size_t i = 0; i < row_ptr.extent(0); ++i)
