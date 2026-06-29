@@ -199,10 +199,26 @@ void CRSMatrix<N>::writeMatrix_(const char* name) const
     Index* dst_col = &indices_row[0];
     DataType* dst_val = &values_row[0];
     Index col_count = 0;
+
+    const auto& row_ptr_h = this->offsetsRefHost();
+    const auto& indices_h = this->indicesRefHost();
+
+    // values are on device only, enforce host copy
+    const auto values = this->valuesRef();
+    const auto values_h =
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), values);
+
     for (Index i = 0; i < nRows(); i++)
     {
-        const auto block_col_idx = rowCols(i);
-        const auto flat_block_row_values = rowVals(i);
+        const auto rowCols_h = Kokkos::subview(
+            indices_h, Kokkos::make_pair(row_ptr_h[i], row_ptr_h[i + 1]));
+        const auto rowVals_h = Kokkos::subview(
+            values_h,
+            Kokkos::make_pair(BLOCKSIZE * BLOCKSIZE * row_ptr_h[i],
+                              BLOCKSIZE * BLOCKSIZE * row_ptr_h[i + 1]));
+
+        const auto block_col_idx = rowCols_h;
+        const auto flat_block_row_values = rowVals_h;
         const Index n_col_blocks = block_col_idx.size();
         for (Index k = 0; k < BLOCKSIZE; k++)
         {

@@ -80,6 +80,7 @@ public:
     using Coefficients = coefficients<N>;
     using Matrix = typename Coefficients::Matrix;
     using Vector = typename Coefficients::Vector;
+    using VectorHost = typename Coefficients::VectorHost;
     using Index = typename Coefficients::Index;
     using IndexVector = typename Coefficients::IndexVector;
     using ControlData = ::linearSolver::ControlData<N>;

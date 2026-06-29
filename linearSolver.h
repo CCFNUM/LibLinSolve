@@ -30,6 +30,7 @@ public:
     using Coefficients = typename Context::Coefficients;
     using Matrix = typename Context::Matrix;
     using Vector = typename Context::Vector;
+    using VectorHost = typename Context::VectorHost;
     using Index = typename Context::Index;
     using IndexVector = typename Context::IndexVector;
 
