@@ -89,6 +89,11 @@ public:
         return graph_.offsets();
     }
 
+    inline const RowPtrViewHost& offsetsRefHost() const
+    {
+        return graph_.offsetsHost();
+    }
+
     KOKKOS_INLINE_FUNCTION const Index* indicesPtr() const
     {
         return graph_.indices().data();
@@ -97,6 +102,11 @@ public:
     KOKKOS_INLINE_FUNCTION const IndexView& indicesRef() const
     {
         return graph_.indices();
+    }
+
+    inline const IndexViewHost& indicesRefHost() const
+    {
+        return graph_.indicesHost();
     }
 
     KOKKOS_INLINE_FUNCTION const Index* diagOffsetPtr() const

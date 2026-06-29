@@ -26,6 +26,7 @@ public:
     using Index = CRSConnectivity::Index;
     using DataType = TRealSolver;
     using Vector = ScalarView;
+    using VectorHost = ScalarViewHost;
 
     static constexpr Index BLOCKSIZE = N;
 

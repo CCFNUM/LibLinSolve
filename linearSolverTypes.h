@@ -48,6 +48,7 @@ using RowPtrViewHost = typename RowPtrView::HostMirror;
 using IndexViewHost = typename IndexView::HostMirror;
 
 using ScalarView = typename CRSMatrixType::values_type;
+using ScalarViewHost = typename ScalarView::HostMirror;
 
 using RangeType = Kokkos::pair<TGraphIndex, TGraphIndex>;
 using RowPtrSubview = Kokkos::Subview<RowPtrView, RangeType>;

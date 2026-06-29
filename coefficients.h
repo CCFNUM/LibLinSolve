@@ -28,6 +28,7 @@ public:
     using Matrix = CRSMatrix<N>;
     using DataType = typename Matrix::DataType;
     using Vector = typename Matrix::Vector;
+    using VectorHost = typename Matrix::VectorHost;
     using Index = typename Matrix::Index;
     using IndexVector = std::vector<Index>;
     using Matrix::BLOCKSIZE;

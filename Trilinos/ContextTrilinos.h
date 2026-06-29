@@ -507,6 +507,7 @@ private:
 
     // NOTE [faw 2026-06-22]: Code taken from Kokkos 5.0.0 (Kokkos 4.7.X
     // does not have this method yet)
+public:
     CRSRowMatrixType convertToCrs_() const
     {
         using crs_size_t = typename LocalSystem::crs_size_t;
