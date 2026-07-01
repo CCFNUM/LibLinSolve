@@ -191,6 +191,37 @@ public:
         return nOwnedNodes() + nGhostNodes();
     }
 
+    // mesh local-id -> graph row; identity if no remap, -1 if not in subset
+    inline int64_t localToRow(const Index local_id) const
+    {
+        if (local_to_row_.empty())
+            return static_cast<int64_t>(local_id);
+        return (static_cast<size_t>(local_id) < local_to_row_.size())
+                   ? local_to_row_[local_id]
+                   : static_cast<int64_t>(-1);
+    }
+
+    inline bool hasRowRemap() const
+    {
+        return !local_to_row_.empty();
+    }
+
+    // mesh local-id -> contiguous global subset id (-1 if not in this graph)
+    inline int64_t localToGlobalRow(const Index local_id) const
+    {
+        if (!local_to_global_.empty())
+            return (static_cast<size_t>(local_id) < local_to_global_.size())
+                       ? local_to_global_[local_id]
+                       : static_cast<int64_t>(-1);
+        const int64_t r = localToRow(local_id);
+        return r < 0 ? -1 : r + static_cast<int64_t>(global_row_offset_);
+    }
+
+    inline std::vector<int64_t>& localToRowMutable()
+    {
+        return local_to_row_;
+    }
+
     inline Index nGlobalNodes() const
     {
         assert(is_built_);
@@ -343,6 +374,12 @@ protected:
     Index n_ghost_nodes_; // nodes in graph not locally owned by process
     bool determine_n_ghosts_;
     bool is_built_;
+
+    // external-local-id -> row remap (empty = identity); set by subset graphs
+    std::vector<int64_t> local_to_row_;
+
+    // external-local-id -> global subset id (parallel subset graphs only)
+    std::vector<int64_t> local_to_global_;
 
     // CRS data structures
     std::vector<Index> row_ptr_;           // row offsets
