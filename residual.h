@@ -9,6 +9,7 @@
 #include "CRSResidual.h"
 #include "coefficients.h"
 #include "controlData.h"
+#include "ngpUtilsReduction.hpp"
 #include <cassert>
 #include <cmath>
 #include <mpi.h>
@@ -49,21 +50,43 @@ RMSReduceAndScale(const MPI_Comm comm, const Array<N>& rms, const double scale)
     return global_rms;
 }
 
-template <size_t N, typename DataType, typename Index>
+template <size_t N, typename VectorType, typename Index>
 constexpr Array<N> RMSError(const MPI_Comm comm,
                             const Index n_local,
                             const Index n_global,
-                            const DataType* R)
+                            const VectorType& R)
 {
     constexpr Index BLOCKSIZE = N;
 
+    using ScalarType = VectorType::value_type;
+    using ReduceValueType =
+        accel::NgpUtils::Reduction::FixedArray<ScalarType, BLOCKSIZE>;
+    using ReducerType =
+        accel::NgpUtils::Reduction::FixedArraySum<ScalarType, BLOCKSIZE>;
+
+    ReduceValueType rmsRed;
+    ReducerType reducer(rmsRed);
+
+    Kokkos::parallel_reduce(
+        "RMSError",
+        Kokkos::RangePolicy<AccelExecSpace>(0, n_local),
+        KOKKOS_LAMBDA(const Index i, ReduceValueType& local_rms) {
+            ReduceValueType resSq;
+            for (Index k = 0; k < BLOCKSIZE; ++k)
+            {
+                resSq[k] = R[BLOCKSIZE * i + k] * R[BLOCKSIZE * i + k];
+            }
+            reducer.join(local_rms, resSq);
+        },
+        reducer);
+
+    Kokkos::fence();
+
     Array<N> rms = {0}; // root-mean-square of residual vector
-    for (Index i = 0; i < n_local; i++)
+
+    for (Index k = 0; k < BLOCKSIZE; ++k)
     {
-        for (Index k = 0; k < BLOCKSIZE; k++)
-        {
-            rms[k] += R[BLOCKSIZE * i + k] * R[BLOCKSIZE * i + k];
-        }
+        rms[k] = rmsRed[k];
     }
 
     return RMSReduceAndScale<BLOCKSIZE>(comm, rms, 1.0 / n_global);
@@ -78,7 +101,7 @@ constexpr Array<N> RMSError(const coefficients<N>& coeff)
     return RMSError<N>(coeff.getCommunicator(),
                        coeff.nCoefficients(),
                        coeff.nGlobalCoefficients(),
-                       R.data());
+                       R);
 }
 
 template <size_t N>
@@ -96,16 +119,42 @@ constexpr Array<N> RMSErrorDiagNormalized(const coefficients<N>& coeff)
     assert(A.nRows() == coeff.nCoefficients());
     assert(static_cast<Index>(R.size()) <= BLOCKSIZE * coeff.nCoefficients());
     const Index nrows = coeff.nCoefficients(); // rank local rows
+
+    using ReduceValueType =
+        accel::NgpUtils::Reduction::FixedArray<DataType, BLOCKSIZE>;
+    using ReducerType =
+        accel::NgpUtils::Reduction::FixedArraySum<DataType, BLOCKSIZE>;
+
+    ReduceValueType rmsRed;
+    ReducerType reducer(rmsRed);
+
+    Kokkos::parallel_reduce(
+        "RMSErrorDiagNormalized",
+        Kokkos::RangePolicy<AccelExecSpace>(0, nrows),
+        KOKKOS_LAMBDA(const Index row, ReduceValueType& local_rms) {
+            auto rowVals = A.blockRowVals(row);
+            const typename Matrix::Index diagOffset = A.diagOffset(row);
+            auto blockDiag = rowVals.block(diagOffset);
+
+            ReduceValueType resSq;
+            for (Index k = 0; k < BLOCKSIZE; ++k)
+            {
+                const DataType Ap = blockDiag(k, k);
+                assert(Ap > static_cast<DataType>(0.0));
+                const DataType r = R[BLOCKSIZE * row + k] / Ap;
+                resSq[k] = r * r;
+            }
+            reducer.join(local_rms, resSq);
+        },
+        reducer);
+
+    Kokkos::fence();
+
     Array<N> rms = {0}; // root-mean-square of residual vector
-    for (Index i = 0; i < nrows; i++)
+
+    for (Index k = 0; k < BLOCKSIZE; ++k)
     {
-        const DataType* Ap_blk = A.diag(i);
-        for (Index k = 0; k < BLOCKSIZE; k++)
-        {
-            assert(Ap_blk[BLOCKSIZE * k + k] > static_cast<DataType>(0.0));
-            const DataType r = R[BLOCKSIZE * i + k] / Ap_blk[BLOCKSIZE * k + k];
-            rms[k] += r * r;
-        }
+        rms[k] = rmsRed[k];
     }
 
     return RMSReduceAndScale<BLOCKSIZE>(
