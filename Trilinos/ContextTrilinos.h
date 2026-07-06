@@ -233,6 +233,109 @@ public:
         return static_cast<int>(belos_solver_->getNumIters());
     }
 
+    // NOTE [faw 2026-06-22]: Code taken from Kokkos 5.0.0 (Kokkos 4.7.X
+    // does not have this method yet)
+    static CRSRowMatrixType
+    convertToCrs(const CRSMatrixType block_A,
+                 typename LocalSystem::crs_rowmap_t rowcrs_row_ptr,
+                 typename LocalSystem::crs_entries_t rowcrs_indices,
+                 typename LocalSystem::crs_values_t rowcrs_values)
+    {
+        using crs_size_t = typename LocalSystem::crs_size_t;
+
+        // Get size/dimension info from this Bsr. We will use crs_size_t for all
+        // int types
+        const crs_size_t blockDim = block_A.blockDim();
+        const crs_size_t blockSize = blockDim * blockDim;
+        const crs_size_t numBlockRows = block_A.numRows();
+        const crs_size_t numBlockCols = block_A.numCols();
+        const crs_size_t numBlockEntries = block_A.nnz();
+
+        // Get graph and values from this Bsr
+        const auto blockRowMap = block_A.graph.row_map;
+        const auto blockEntries = block_A.graph.entries;
+        const auto blockValues = block_A.values;
+
+        // Compute Csr row/col/entry sizes by multiplying Bsr sizes by block
+        // dimension
+        const crs_size_t numCrsRows = numBlockRows * blockDim;
+        const crs_size_t numCrsCols = numBlockCols * blockDim;
+        const crs_size_t numCrsEntries = numBlockEntries * blockSize;
+
+        // Create the policy, we have 3 levels of parallelism available in the
+        // algorithm
+        const crs_size_t maxvec = LocalSystem::policy_t::vector_length_max();
+        const crs_size_t veclen = (blockDim <= maxvec) ? blockDim : maxvec;
+        typename LocalSystem::policy_t policy(
+            numBlockRows, Kokkos::AUTO(), veclen);
+
+        // Fill CrsMatrix row map, entries, and values
+        Kokkos::parallel_for(
+            "ConvertBsrToCrs",
+            policy,
+            KOKKOS_LAMBDA(const typename LocalSystem::member_t& team) {
+                const crs_size_t blockRow = team.league_rank();
+                const crs_size_t blockRowStart = blockRowMap(blockRow);
+                const crs_size_t blockRowEnd = blockRowMap(blockRow + 1);
+                const crs_size_t blockRowCount = blockRowEnd - blockRowStart;
+
+                // Iterate over block entries in this row.
+                Kokkos::parallel_for(
+                    Kokkos::TeamThreadRange(team, blockRowStart, blockRowEnd),
+                    [&](const crs_size_t& blockNnz)
+                {
+                    const crs_size_t blockCol = blockEntries(blockNnz);
+                    const crs_size_t blockNum = blockNnz - blockRowStart;
+
+                    // Iterate over block dim to get the unblocked rows
+                    Kokkos::parallel_for(
+                        Kokkos::ThreadVectorRange(team, blockDim),
+                        [&](const crs_size_t& blockRowOffset)
+                    {
+                        const crs_size_t crsRow =
+                            blockRow * blockDim + blockRowOffset;
+                        // Each unblocked row has blockRowCount * blockDim items
+                        const crs_size_t crsRowStart =
+                            blockRowStart * blockSize +
+                            blockRowCount * blockDim * blockRowOffset;
+                        rowcrs_row_ptr(crsRow) = crsRowStart;
+
+                        // Iterate over block dim to get the unblocked cols
+                        for (crs_size_t blockColOffset = 0;
+                             blockColOffset < blockDim;
+                             ++blockColOffset)
+                        {
+                            const crs_size_t crsCol =
+                                blockCol * blockDim + blockColOffset;
+                            const crs_size_t crsNnz = crsRowStart +
+                                                      blockNum * blockDim +
+                                                      blockColOffset;
+                            rowcrs_indices(crsNnz) = crsCol;
+                            rowcrs_values(crsNnz) = blockValues(
+                                blockNnz * blockSize +
+                                blockRowOffset * blockDim + blockColOffset);
+                        }
+                    });
+                });
+
+                // Finalize CrsMatrix row map
+                if (blockRow == numBlockRows - 1)
+                {
+                    rowcrs_row_ptr(numCrsRows) =
+                        blockRowMap(numBlockRows) * blockSize;
+                }
+            });
+
+        // Construct CrsMatrix
+        return CRSRowMatrixType("convertedFromBsrMatrix",
+                                numCrsRows,
+                                numCrsCols,
+                                rowcrs_indices.extent(0),
+                                rowcrs_values,
+                                rowcrs_row_ptr,
+                                rowcrs_indices);
+    }
+
 protected:
     inline ContextTrilinos* castContextTrilinos_() override
     {
@@ -398,8 +501,13 @@ private:
         rowcrs_values_ =
             typename LocalSystem::crs_values_t{"crsValues", numCrsEntries};
 
-        matrix_ = Teuchos::rcp(
-            new typename Trilinos::Matrix(map_, map_, this->convertToCrs_()));
+        matrix_ = Teuchos::rcp(new typename Trilinos::Matrix(
+            map_,
+            map_,
+            this->convertToCrs(this->getAMatrix().getCrsMatrix(),
+                               rowcrs_row_ptr_,
+                               rowcrs_indices_,
+                               rowcrs_values_)));
 
         // create tpetra vectors
         x_vec_ = Teuchos::rcp(new typename Trilinos::Vector(map_));
@@ -489,7 +597,11 @@ private:
         {
             matrix_->resumeFill();
             auto dst = matrix_->getLocalMatrixDevice().values;
-            auto src = this->convertToCrs_().values;
+            auto src = this->convertToCrs(this->getAMatrix().getCrsMatrix(),
+                                          rowcrs_row_ptr_,
+                                          rowcrs_indices_,
+                                          rowcrs_values_)
+                           .values;
             Kokkos::deep_copy(dst, src);
             matrix_->fillComplete();
         }
@@ -512,108 +624,6 @@ private:
         const auto src = x_vec_->getLocalViewDevice(Tpetra::Access::ReadOnly);
         Vector& x = this->coeffs_->getXVector();
         Kokkos::deep_copy(x, Kokkos::subview(src, Kokkos::ALL, 0));
-    }
-
-    // NOTE [faw 2026-06-22]: Code taken from Kokkos 5.0.0 (Kokkos 4.7.X
-    // does not have this method yet)
-public:
-    CRSRowMatrixType convertToCrs_() const
-    {
-        using crs_size_t = typename LocalSystem::crs_size_t;
-
-        const CRSMatrixType block_A = this->getAMatrix().getCrsMatrix();
-
-        // Get size/dimension info from this Bsr. We will use crs_size_t for all
-        // int types
-        const crs_size_t blockDim = block_A.blockDim();
-        const crs_size_t blockSize = blockDim * blockDim;
-        const crs_size_t numBlockRows = block_A.numRows();
-        const crs_size_t numBlockCols = block_A.numCols();
-        const crs_size_t numBlockEntries = block_A.nnz();
-
-        // Get graph and values from this Bsr
-        const auto blockRowMap = block_A.graph.row_map;
-        const auto blockEntries = block_A.graph.entries;
-        const auto blockValues = block_A.values;
-
-        // Compute Csr row/col/entry sizes by multiplying Bsr sizes by block
-        // dimension
-        const crs_size_t numCrsRows = numBlockRows * blockDim;
-        const crs_size_t numCrsCols = numBlockCols * blockDim;
-        const crs_size_t numCrsEntries = numBlockEntries * blockSize;
-
-        // Create the policy, we have 3 levels of parallelism available in the
-        // algorithm
-        const crs_size_t maxvec = LocalSystem::policy_t::vector_length_max();
-        const crs_size_t veclen = (blockDim <= maxvec) ? blockDim : maxvec;
-        typename LocalSystem::policy_t policy(
-            numBlockRows, Kokkos::AUTO(), veclen);
-
-        // Fill CrsMatrix row map, entries, and values
-        Kokkos::parallel_for(
-            "ConvertBsrToCrs",
-            policy,
-            KOKKOS_LAMBDA(const typename LocalSystem::member_t& team) {
-                const crs_size_t blockRow = team.league_rank();
-                const crs_size_t blockRowStart = blockRowMap(blockRow);
-                const crs_size_t blockRowEnd = blockRowMap(blockRow + 1);
-                const crs_size_t blockRowCount = blockRowEnd - blockRowStart;
-
-                // Iterate over block entries in this row.
-                Kokkos::parallel_for(
-                    Kokkos::TeamThreadRange(team, blockRowStart, blockRowEnd),
-                    [&](const crs_size_t& blockNnz)
-                {
-                    const crs_size_t blockCol = blockEntries(blockNnz);
-                    const crs_size_t blockNum = blockNnz - blockRowStart;
-
-                    // Iterate over block dim to get the unblocked rows
-                    Kokkos::parallel_for(
-                        Kokkos::ThreadVectorRange(team, blockDim),
-                        [&](const crs_size_t& blockRowOffset)
-                    {
-                        const crs_size_t crsRow =
-                            blockRow * blockDim + blockRowOffset;
-                        // Each unblocked row has blockRowCount * blockDim items
-                        const crs_size_t crsRowStart =
-                            blockRowStart * blockSize +
-                            blockRowCount * blockDim * blockRowOffset;
-                        rowcrs_row_ptr_(crsRow) = crsRowStart;
-
-                        // Iterate over block dim to get the unblocked cols
-                        for (crs_size_t blockColOffset = 0;
-                             blockColOffset < blockDim;
-                             ++blockColOffset)
-                        {
-                            const crs_size_t crsCol =
-                                blockCol * blockDim + blockColOffset;
-                            const crs_size_t crsNnz = crsRowStart +
-                                                      blockNum * blockDim +
-                                                      blockColOffset;
-                            rowcrs_indices_(crsNnz) = crsCol;
-                            rowcrs_values_(crsNnz) = blockValues(
-                                blockNnz * blockSize +
-                                blockRowOffset * blockDim + blockColOffset);
-                        }
-                    });
-                });
-
-                // Finalize CrsMatrix row map
-                if (blockRow == numBlockRows - 1)
-                {
-                    rowcrs_row_ptr_(numCrsRows) =
-                        blockRowMap(numBlockRows) * blockSize;
-                }
-            });
-
-        // Construct CrsMatrix
-        return CRSRowMatrixType("convertedFromBsrMatrix",
-                                numCrsRows,
-                                numCrsCols,
-                                rowcrs_indices_.extent(0),
-                                rowcrs_values_,
-                                rowcrs_row_ptr_,
-                                rowcrs_indices_);
     }
 };
 
