@@ -76,15 +76,18 @@ public:
 
             // clang-format off
             auto& cout = ctx_->cout();
-            cout << "Context: "
-                      << static_cast<const void*>(ctx_.get()) << '\n';
-            cout << "\tMatrix all rows:  " << BLOCKSIZE * coeffs.nGlobalCoefficients() << '\n';
-            cout << "\tMatrix all nnz:   " << coeffs.nnzGlobal() << '\n';
-            cout << "\tMatrix blocksize: " << BLOCKSIZE << '\n';
-            cout << "\tMatrix fp data:   " << data.sum_byte / MemoryFootprint::BYTE_DIVIDE << " MB\n";
-            cout << "\tMatrix int data:  " << connectivity.sum_byte / MemoryFootprint::BYTE_DIVIDE << " MB\n";
-            cout << "\tReduced stencil:  " << std::string(reduced ? "true" : "false") << '\n';
-            cout << "\tCoefficients:     " << static_cast<const void*>(ctx_->coeffs().get()) << '\n';
+            cout << "Context: " << static_cast<const void*>(ctx_.get()) << '\n';
+            cout << "\tMatrix all rows:   " << BLOCKSIZE * coeffs.nGlobalCoefficients() << '\n';
+            cout << "\tMatrix all nnz:    " << coeffs.nnzGlobal() << '\n';
+            cout << "\tMatrix blocksize:  " << BLOCKSIZE << '\n';
+            if (BLOCKSIZE > 1) {
+            cout << "\tMatrix block rows: " << coeffs.nGlobalCoefficients() << '\n';
+            cout << "\tMatrix block nnz:  " << coeffs.nnzGlobalBlocks() << '\n';
+            }
+            cout << "\tMatrix fp data:    " << data.sum_byte / MemoryFootprint::BYTE_DIVIDE << " MB\n";
+            cout << "\tMatrix int data:   " << connectivity.sum_byte / MemoryFootprint::BYTE_DIVIDE << " MB\n";
+            cout << "\tReduced stencil:   " << std::string(reduced ? "true" : "false") << '\n';
+            cout << "\tCoefficients:      " << static_cast<const void*>(ctx_->coeffs().get()) << '\n';
 #ifndef NDEBUG
             // check for numerical zeros and almost zeros
             const typename Matrix::DataType zero = std::abs(0.0);
@@ -109,8 +112,8 @@ public:
             const size_t eps_mbyte = global_zeros[1] *
                                      sizeof(typename Matrix::DataType) /
                                      MemoryFootprint::BYTE_DIVIDE;
-            cout << "\tN numerical zero: " << global_zeros[0] << " (" << zero_mbyte << " MB)\n";
-            cout << "\tN machine eps.:   " << global_zeros[1] << " (" << eps_mbyte << " MB)\n";
+            cout << "\tN numerical zero:  " << global_zeros[0] << " (" << zero_mbyte << " MB)\n";
+            cout << "\tN machine eps.:    " << global_zeros[1] << " (" << eps_mbyte << " MB)\n";
 #endif /* NDEBUG */
             cout << std::endl;
             // clang-format on
