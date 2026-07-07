@@ -127,11 +127,11 @@ public:
                      system_name,
                      graph,
                      node),
-          matrix_initialized_(false), use_preconditioner_(false),
-          preconditioner_initialized_(false), belos_solver_name_("GMRES"),
-          preconditioner_type_("RELAXATION")
+          is_initialized_(false), matrix_initialized_(false),
+          use_preconditioner_(false), preconditioner_initialized_(false),
+          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION")
     {
-        setup_(node);
+        configureFromYaml_(node);
     }
 
     ContextTrilinos(const std::string& family,
@@ -143,11 +143,11 @@ public:
                      system_name,
                      coeffs,
                      node),
-          matrix_initialized_(false), use_preconditioner_(false),
-          preconditioner_initialized_(false), belos_solver_name_("GMRES"),
-          preconditioner_type_("RELAXATION")
+          is_initialized_(false), matrix_initialized_(false),
+          use_preconditioner_(false), preconditioner_initialized_(false),
+          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION")
     {
-        setup_(node);
+        configureFromYaml_(node);
     }
 
     ~ContextTrilinos()
@@ -157,6 +157,11 @@ public:
 
     void solvePrologue(const int solver_id, const bool preconditioner) override
     {
+        if (!is_initialized_)
+        {
+            this->initialize_();
+        }
+
         copyCoefficients_();
         copyStateToTpetra_();
         Context<N>::solvePrologue(solver_id, preconditioner);
@@ -165,6 +170,7 @@ public:
     std::string info(std::ostream& os,
                      const char* prefix = nullptr) const override
     {
+        assert(is_initialized_);
         const std::string pfx = Context<N>::info(os, prefix);
         os << pfx << '\t' << "Belos solver:     " << belos_solver_name_ << '\n';
         os << pfx << '\t' << "Preconditioner:   "
@@ -231,19 +237,31 @@ private:
         belos_solver_;
     Teuchos::RCP<Teuchos::ParameterList> belos_params_;
     Teuchos::ParameterList preconditioner_params_;
+    bool is_initialized_;
     bool matrix_initialized_;
     bool use_preconditioner_;
     bool preconditioner_initialized_;
     std::string belos_solver_name_;
     std::string preconditioner_type_;
 
-    void setup_(const YAML::Node* node)
+    void initialize_()
     {
         buildCommunicator_();
         buildMap_();
         buildMatrix_();
         buildVectors_();
-        configureFromYaml_(node);
+
+        if (use_preconditioner_)
+        {
+            if (preconditioner_type_ == "RELAXATION" &&
+                !preconditioner_params_.isParameter("relaxation: type"))
+            {
+                preconditioner_params_.set("relaxation: type", "Jacobi");
+            }
+            createPreconditioner_();
+        }
+
+        is_initialized_ = true;
     }
 
     void configureFromYaml_(const YAML::Node* node)
@@ -304,15 +322,6 @@ private:
             }
         }
 
-        if (use_preconditioner_)
-        {
-            if (preconditioner_type_ == "RELAXATION" &&
-                !preconditioner_params_.isParameter("relaxation: type"))
-            {
-                preconditioner_params_.set("relaxation: type", "Jacobi");
-            }
-            createPreconditioner_();
-        }
     }
 
     void buildCommunicator_()

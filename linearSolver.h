@@ -136,13 +136,11 @@ public:
 
     std::shared_ptr<Context> getContext()
     {
-        assert(ctx_);
         return ctx_;
     }
 
     std::shared_ptr<const Context> getContext() const
     {
-        assert(ctx_);
         return std::static_pointer_cast<const Context>(ctx_);
     }
 

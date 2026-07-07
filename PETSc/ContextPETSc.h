@@ -44,9 +44,9 @@ public:
                  const YAML::Node* node = nullptr)
         : Context<N>(linearSolver::ID::PETSc, family, system_name, graph, node),
           ksp_petsc_(nullptr), A_petsc_(nullptr), x_petsc_(nullptr),
-          b_petsc_(nullptr)
+          b_petsc_(nullptr), is_initalized_(false)
     {
-        setup_(node);
+        setOptions_(node);
     }
 
     // used for preconditioning (shares coefficients)
@@ -60,9 +60,9 @@ public:
                      coeffs,
                      node),
           ksp_petsc_(nullptr), A_petsc_(nullptr), x_petsc_(nullptr),
-          b_petsc_(nullptr)
+          b_petsc_(nullptr), is_initalized_(false)
     {
-        setup_(node);
+        setOptions_(node);
     }
 
     ~ContextPETSc()
@@ -96,6 +96,11 @@ public:
 
     void solvePrologue(const int solver_id, const bool preconditioner) override
     {
+        if (!is_initalized_)
+        {
+            this->initialize_();
+        }
+
         // default assumes matrix elements change for every iteration: matrix
         // elements must be explicitly updated and KSPSetOperators must be
         // called before every KSPSolve
@@ -108,6 +113,7 @@ public:
     std::string info(std::ostream& os,
                      const char* prefix = nullptr) const override
     {
+        assert(is_initalized_);
         const std::string pfx = Context<N>::info(os, prefix);
 
         PC pc;
@@ -156,8 +162,9 @@ private:
     Mat A_petsc_;
     Vec x_petsc_;
     Vec b_petsc_;
+    bool is_initalized_;
 
-    void setup_(const YAML::Node* solver_yaml); // at construction
+    void initialize_();
     int setOptions_(const YAML::Node* solver_yaml) override;
 
     int clearOptions_()
@@ -203,18 +210,11 @@ private:
 };
 
 template <size_t N>
-void ContextPETSc<N>::setup_(const YAML::Node* solver_yaml)
+void ContextPETSc<N>::initialize_()
 {
-    // start with empty options to avoid interference if multiple contexts
-    // exist
-    clearOptions_();
-    if (solver_yaml)
-    {
-        setOptions_(solver_yaml);
-    }
-
     this->initializeSystem();
     createKSP_();
+    is_initalized_ = true;
 
 #if 0
     PetscViewer viewer;
@@ -227,6 +227,14 @@ void ContextPETSc<N>::setup_(const YAML::Node* solver_yaml)
 template <size_t N>
 int ContextPETSc<N>::setOptions_(const YAML::Node* solver_yaml)
 {
+    // start with empty options to avoid interference if multiple contexts
+    // exist
+    clearOptions_();
+    if (!solver_yaml)
+    {
+        return 0;
+    }
+
     assert(solver_yaml);
     Context<N>::setOptions_(solver_yaml);
 

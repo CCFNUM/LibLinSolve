@@ -72,9 +72,8 @@ public:
                  const CRSNodeGraph* graph,
                  const YAML::Node* node = nullptr)
         : Context<N>(linearSolver::ID::HYPRE, family, system_name, graph, node),
-          options_node_(node)
+          options_node_(node), is_initalized_(false)
     {
-        setup_();
     }
 
     // used for preconditioning (shares coefficients)
@@ -87,9 +86,8 @@ public:
                      system_name,
                      coeffs,
                      node),
-          options_node_(node)
+          options_node_(node), is_initalized_(false)
     {
-        setup_();
     }
 
     ~ContextHYPRE()
@@ -101,6 +99,11 @@ public:
 
     void solvePrologue(const int solver_id, const bool preconditioner) override
     {
+        if (!is_initalized_)
+        {
+            this->initialize_();
+        }
+
         setupSolver_(options_node_);
         copyLocalToHYPRE_();
         Context<N>::solvePrologue(solver_id, preconditioner);
@@ -116,6 +119,7 @@ public:
     std::string info(std::ostream& os,
                      const char* prefix = nullptr) const override
     {
+        assert(is_initalized_);
         const std::string pfx = Context<N>::info(os, prefix);
         for (const auto& option : options_)
         {
@@ -184,7 +188,9 @@ private:
     Index j_upper_;
     Index n_unknowns;
 
-    void setup_(); // at construction
+    bool is_initalized_;
+
+    void initialize_();
 
     int setOptions_(const YAML::Node* solver_yaml) override
     {
@@ -234,7 +240,7 @@ private:
 };
 
 template <size_t N>
-void ContextHYPRE<N>::setup_()
+void ContextHYPRE<N>::initialize_()
 {
     resetCallbacks_();
 
@@ -271,6 +277,8 @@ void ContextHYPRE<N>::setup_()
     // populate options
     setOptions_(options_node_);
     destroySolver_();
+
+    is_initalized_ = true;
 }
 
 template <size_t N>
