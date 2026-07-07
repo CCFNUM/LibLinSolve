@@ -15,73 +15,102 @@ namespace linearSolver
 {
 
 CRSNodeGraph::CRSNodeGraph(const MPI_Comm comm, const GraphLayout layout)
-    : comm_(comm), layout_(layout)
+    : comm_(comm), subcomm_(MPI_COMM_NULL), is_subgraph_(false), layout_(layout)
 {
     resetGraph_();
-    setup_();
+}
+
+CRSNodeGraph::~CRSNodeGraph()
+{
+    subcommFree_();
 }
 
 void CRSNodeGraph::buildGraph()
 {
     buildGraph_();
+    setupSubgraph_();
 
-    assert(row_ptr_.size() > 1);
-    assert(static_cast<Index>(primary_indices_.size()) == row_ptr_.back());
-    n_owned_nodes_ = static_cast<Index>(row_ptr_.size()) - 1;
     is_built_ = true;
 
-    computeAuxiliaryData_();
-    computePackInfos_();
+    if (isGraphMember())
+    {
+        assert(row_ptr_.size() > 1);
+        assert(static_cast<Index>(primary_indices_.size()) == row_ptr_.back());
+        n_owned_nodes_ = static_cast<Index>(row_ptr_.size()) - 1;
+
+        computeAuxiliaryData_();
+        computePackInfos_();
 
 #ifndef NDEBUG
-    // sanity checks:
-    assert(is_built_);
-    assert(n_owned_nodes_ > 0);
-    assert(n_ghost_nodes_ != ~0);
-    assert(global_row_offset_ != ~0);
-    assert(global_number_nodes_ != ~0);
-    assert(global_number_indices_ != ~0ull);
+        // sanity checks:
+        assert(is_built_);
+        assert(n_owned_nodes_ > 0);
+        assert(n_ghost_nodes_ != ~0);
+        assert(global_row_offset_ != ~0);
+        assert(global_number_nodes_ != ~0);
+        assert(global_number_indices_ != ~0ull);
 
-    // a.)
-    Index sum_nnz = 0;
-    assert(n_owned_nodes_ == static_cast<Index>(row_nnz_owned_.size()));
-    assert(n_owned_nodes_ == static_cast<Index>(row_nnz_ghost_.size()));
-    for (Index i = 0; i < n_owned_nodes_; i++)
-    {
-        const Index row_sum_nnz = nnzOwned(i) + nnzGhost(i);
-        sum_nnz += row_sum_nnz;
-        assert(row_sum_nnz == row_ptr_[i + 1] - row_ptr_[i]);
-    }
-    assert(sum_nnz == this->nIndices());
-    // b.)
-    Index sum_received = 0;
-    for (const PackInfo& p : pack_infos_)
-    {
-        sum_received += static_cast<Index>(p.recv_idx.size());
-    }
-    assert(sum_received <= n_ghost_nodes_);
-    if (comm_ != MPI_COMM_NULL)
-    {
-        for (int r = 0; r < size_; r++)
+        // a.)
+        Index sum_nnz = 0;
+        assert(n_owned_nodes_ == static_cast<Index>(row_nnz_owned_.size()));
+        assert(n_owned_nodes_ == static_cast<Index>(row_nnz_ghost_.size()));
+        for (Index i = 0; i < n_owned_nodes_; i++)
         {
-            if (r == rank_ && sum_received < n_ghost_nodes_)
-            {
-                std::cout << "WARNING (rank=" << rank_
-                          << "): receiving fewer ghost nodes than number of "
-                             "ghosts in graph (receiving="
-                          << sum_received << "; n_ghosts=" << n_ghost_nodes_
-                          << ")" << std::endl;
-            }
-            MPI_Barrier(comm_);
+            const Index row_sum_nnz = nnzOwned(i) + nnzGhost(i);
+            sum_nnz += row_sum_nnz;
+            assert(row_sum_nnz == row_ptr_[i + 1] - row_ptr_[i]);
         }
-    }
-    // c.)
-    assert(n_owned_nodes_ == static_cast<Index>(diagonal_row_offset_.size()));
-    for (const Index i : diagonal_row_offset_)
-    {
-        assert(i >= 0);
-    }
+        assert(sum_nnz == this->nIndices());
+        // b.)
+        Index sum_received = 0;
+        for (const PackInfo& p : pack_infos_)
+        {
+            sum_received += static_cast<Index>(p.recv_idx.size());
+        }
+        assert(sum_received <= n_ghost_nodes_);
+        const MPI_Comm comm = getCommunicator();
+        if (comm != MPI_COMM_NULL)
+        {
+            for (int r = 0; r < size_; r++)
+            {
+                if (r == rank_ && sum_received < n_ghost_nodes_)
+                {
+                    std::cout
+                        << "WARNING (rank=" << rank_
+                        << "): receiving fewer ghost nodes than number of "
+                           "ghosts in graph (receiving="
+                        << sum_received << "; n_ghosts=" << n_ghost_nodes_
+                        << ")" << std::endl;
+                }
+                MPI_Barrier(comm);
+            }
+        }
+        // c.)
+        assert(n_owned_nodes_ ==
+               static_cast<Index>(diagonal_row_offset_.size()));
+        for (const Index i : diagonal_row_offset_)
+        {
+            assert(i >= 0);
+        }
 #endif /* NDEBUG */
+    }
+    else
+    {
+        layout_ = GraphLayout::UNDEFINED; // non-member layout is not defined
+        pack_infos_.clear();
+        n_ghost_nodes_ = 0;
+        determine_n_ghosts_ = false;
+
+#ifndef NDEBUG
+        if (!isGraphMember())
+        {
+            // sanity checks for non graph members
+            assert(is_built_);
+            assert(n_owned_nodes_ == 0);
+            assert(n_ghost_nodes_ == 0);
+        }
+#endif /* NDEBUG */
+    }
 }
 
 std::span<const CRSNodeGraph::Index> CRSNodeGraph::localIndices() const
@@ -119,6 +148,12 @@ CRSNodeGraph::rowLocalIndices(const Index i_row) const
 {
     assert(0 <= i_row);
     assert(i_row < this->nOwnedNodes());
+
+    if (!isGraphMember())
+    {
+        return std::span<const Index>();
+    }
+
     if (this->isLocalColumnOrder())
     {
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
@@ -139,6 +174,12 @@ CRSNodeGraph::rowGlobalIndices(const Index i_row) const
 {
     assert(0 <= i_row);
     assert(i_row < this->nOwnedNodes());
+
+    if (!isGraphMember())
+    {
+        return std::span<const Index>();
+    }
+
     if (this->isGlobalColumnOrder())
     {
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
@@ -159,7 +200,7 @@ void CRSNodeGraph::getMemoryFootprint(MemoryFootprint& data) const
     assert(is_built_);
     std::memset(&data, 0, sizeof(MemoryFootprint));
 
-    if (comm_ != MPI_COMM_NULL)
+    if (isGraphMember())
     {
         // integer array data
         unsigned long long int n_elements = row_ptr_.size();
@@ -173,13 +214,14 @@ void CRSNodeGraph::getMemoryFootprint(MemoryFootprint& data) const
             n_elements += p.send_idx.size();
             n_elements += p.recv_idx.size();
         }
+        const MPI_Comm comm = getCommunicator();
         MPI_Reduce(&n_elements,
                    &data.sum_byte,
                    1,
                    MPI_UNSIGNED_LONG_LONG,
                    MPI_SUM,
                    0,
-                   comm_);
+                   comm);
         data.sum_byte *= sizeof(Index);
     }
 }
@@ -286,13 +328,14 @@ typename CRSNodeGraph::Index CRSNodeGraph::filterGhostsForOwnerRank_(
 
 void CRSNodeGraph::computePackInfos_()
 {
-    if (1 == size_ || comm_ == MPI_COMM_NULL)
+    if (1 == size_ || !isGraphMember())
     {
         this->pack_infos_.clear();
         this->n_ghost_nodes_ = 0;
         return;
     }
 
+    const MPI_Comm comm = getCommunicator();
     std::vector<Index> rank_n_nodes(size_);
     MPI_Allgather(&n_owned_nodes_,
                   1,
@@ -300,7 +343,7 @@ void CRSNodeGraph::computePackInfos_()
                   rank_n_nodes.data(),
                   1,
                   MPIDataType<Index>::type(),
-                  comm_);
+                  comm);
 
     // 1.) determine locally required ghosts
     std::vector<Index> global_ghost;
@@ -370,7 +413,7 @@ void CRSNodeGraph::computePackInfos_()
     std::sort(permute.begin(),
               permute.end(),
               [&global_ghost](const size_t i, const size_t j)
-              { return global_ghost[i] < global_ghost[j]; });
+    { return global_ghost[i] < global_ghost[j]; });
     CRSNodeGraph::permuteInPlace_(global_ghost.data(), permute);
     CRSNodeGraph::permuteInPlace_(local_ghost.data(), permute);
 
@@ -414,7 +457,7 @@ void CRSNodeGraph::computePackInfos_()
                  n_send_count.data(),
                  1,
                  MPIDataType<Index>::type(),
-                 comm_);
+                 comm);
     for (int i = 0; i < size_; i++)
     {
         infos[i].send_idx.resize(n_send_count[i]);
@@ -431,7 +474,7 @@ void CRSNodeGraph::computePackInfos_()
                       MPIDataType<Index>::type(),
                       i,
                       i,
-                      comm_,
+                      comm,
                       &req);
             requests.push_back(req);
         }
@@ -446,7 +489,7 @@ void CRSNodeGraph::computePackInfos_()
                      MPIDataType<Index>::type(),
                      i,
                      rank_,
-                     comm_);
+                     comm);
         }
     }
     MPI_Waitall(requests.size(), requests.data(), MPI_STATUSES_IGNORE);
@@ -536,31 +579,35 @@ void CRSNodeGraph::computeRowNonZeros_()
 
 void CRSNodeGraph::computeGlobalRowOffset_()
 {
-    assert(comm_ != MPI_COMM_NULL);
-    if (global_row_offset_ == ~0)
+    if (isGraphMember() && global_row_offset_ == ~0)
     {
         assert(n_owned_nodes_ > 0);
         const unsigned long long n_rows = n_owned_nodes_;
         unsigned long long my_offset = 0;
+        const MPI_Comm comm = getCommunicator();
         MPI_Exscan(
-            &n_rows, &my_offset, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm_);
+            &n_rows, &my_offset, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
         global_row_offset_ = static_cast<Index>(my_offset);
     }
 }
 
 void CRSNodeGraph::computeGlobalGraphSize_()
 {
-    assert(is_built_);
-    assert(comm_ != MPI_COMM_NULL);
-    if (global_number_nodes_ == ~0 || global_number_indices_ == ~0ull)
+    if (isGraphMember())
     {
-        const unsigned long long local[2] = {
-            static_cast<unsigned long long>(this->nOwnedNodes()),
-            static_cast<unsigned long long>(this->nIndices())};
-        unsigned long long global[2] = {0};
-        MPI_Allreduce(local, global, 2, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm_);
-        global_number_nodes_ = static_cast<Index>(global[0]);
-        global_number_indices_ = global[1];
+        assert(is_built_);
+        if (global_number_nodes_ == ~0 || global_number_indices_ == ~0ull)
+        {
+            const unsigned long long local[2] = {
+                static_cast<unsigned long long>(this->nOwnedNodes()),
+                static_cast<unsigned long long>(this->nIndices())};
+            unsigned long long global[2] = {0};
+            const MPI_Comm comm = getCommunicator();
+            MPI_Allreduce(
+                local, global, 2, MPI_UNSIGNED_LONG_LONG, MPI_SUM, comm);
+            global_number_nodes_ = static_cast<Index>(global[0]);
+            global_number_indices_ = global[1];
+        }
     }
 }
 
@@ -594,7 +641,7 @@ void CRSNodeGraph::sortPrimaryIndices_()
         std::sort(permute.begin(),
                   permute.end(),
                   [primary_idx](const size_t i, const size_t j)
-                  { return primary_idx[i] < primary_idx[j]; });
+        { return primary_idx[i] < primary_idx[j]; });
         CRSNodeGraph::permuteCopy_(primary_idx.data(), buffer, permute);
 
         if (has_secondary)
@@ -612,15 +659,73 @@ void CRSNodeGraph::setup_()
 {
     rank_ = -1;
     size_ = -1;
-    if (comm_ != MPI_COMM_NULL)
+    if (isGraphMember())
     {
-        MPI_Comm_rank(comm_, &rank_);
-        MPI_Comm_size(comm_, &size_);
+        const MPI_Comm comm = getCommunicator();
+        MPI_Comm_rank(comm, &rank_);
+        MPI_Comm_size(comm, &size_);
+    }
+}
+
+void CRSNodeGraph::setupSubgraph_()
+{
+    // This method must be called after buildGraph_ has been called.  If
+    // the buildGraph_ call resulted in one or more ranks without owned nodes,
+    // then this is a subgraph of the domain with a reduced communicator.
+    //
+    // NOTE [faw 2026-07-07]: The structure of owned nodes based on the mesh
+    // decomposition is inherited here, NO repartitioning of the working set is
+    // performed here and ranks with zero n_owned_nodes_ remain idle (load
+    // imbalance).
+    int size;
+    int color = (n_owned_nodes_ == 0) ? 0 : 1;
+    int chksum = 0;
+    MPI_Comm_size(comm_, &size);
+    MPI_Allreduce(&color, &chksum, 1, MPI_INT, MPI_SUM, comm_);
+    is_subgraph_ = (chksum < size) ? true : false;
+
+    if (is_subgraph_)
+    {
+        subcommFree_();
+        if (0 == color)
+        {
+            color = MPI_UNDEFINED;
+        }
+        int key;
+        MPI_Comm_rank(comm_, &key); // preserve order of base comm_
+        MPI_Comm_split(comm_, color, key, &subcomm_);
+
+#ifndef NDEBUG
+        if (n_owned_nodes_ == 0)
+        {
+            assert(subcomm_ == MPI_COMM_NULL);
+            assert(!isGraphMember());
+        }
+        else
+        {
+            assert(subcomm_ != MPI_COMM_NULL);
+            assert(isGraphMember());
+        }
+#endif /* NDEBUG */
+
+        setup_();
+    }
+}
+
+void CRSNodeGraph::subcommFree_()
+{
+    if (subcomm_ != MPI_COMM_NULL)
+    {
+        MPI_Comm_free(&subcomm_);
+        subcomm_ = MPI_COMM_NULL;
+        is_subgraph_ = false;
     }
 }
 
 void CRSNodeGraph::resetGraph_()
 {
+    subcommFree_();
+    setup_();
     is_built_ = false;
     n_owned_nodes_ = 0;
     n_ghost_nodes_ = ~0;

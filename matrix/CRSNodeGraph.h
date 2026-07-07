@@ -153,13 +153,18 @@ public:
 
     explicit CRSNodeGraph(const MPI_Comm comm, const GraphLayout layout);
 
-    virtual ~CRSNodeGraph() = default;
+    virtual ~CRSNodeGraph();
 
     void buildGraph();
 
     inline MPI_Comm getCommunicator() const
     {
-        return comm_;
+        return (is_subgraph_) ? subcomm_ : comm_;
+    }
+
+    inline bool isGraphMember() const
+    {
+        return (getCommunicator() != MPI_COMM_NULL);
     }
 
     inline int commRank() const
@@ -175,7 +180,6 @@ public:
     inline Index nOwnedNodes() const
     {
         assert(is_built_);
-        assert(n_owned_nodes_ > 0);
         return n_owned_nodes_;
     }
 
@@ -225,12 +229,14 @@ public:
     inline Index nGlobalNodes() const
     {
         assert(is_built_);
+        assert(isGraphMember());
         return global_number_nodes_;
     }
 
     inline Index globalRowOffset() const
     {
         assert(is_built_);
+        assert(isGraphMember());
         return global_row_offset_;
     }
 
@@ -252,13 +258,13 @@ public:
     inline unsigned long long nGlobalIndices() const
     {
         assert(is_built_);
+        assert(isGraphMember());
         return global_number_indices_;
     }
 
     inline const std::vector<Index>& offsets() const
     {
         assert(is_built_);
-        assert(row_ptr_.size() > 1);
         return row_ptr_;
     }
 
@@ -340,6 +346,7 @@ public:
         assert(j_local <= this->nOwnedNodes() &&
                "CRSNodeGraph::localToGlobalIndex: `j_local` must be owned (inclusive)"); // inclusive
         // clang-format on
+        assert(isGraphMember());
         return j_local + this->global_row_offset_;
     }
 
@@ -352,6 +359,7 @@ public:
         assert(j_global <= this->global_row_offset_ + this->nOwnedNodes() &&
                "CRSNodeGraph::localToGlobalIndex: `j_global` must be owned (inclusive)"); // inclusive
         // clang-format on
+        assert(isGraphMember());
         return j_global - this->global_row_offset_;
     }
 
@@ -367,6 +375,7 @@ public:
 
 protected:
     MPI_Comm comm_;
+    MPI_Comm subcomm_;
     int rank_;
     int size_;
 
@@ -374,6 +383,7 @@ protected:
     Index n_ghost_nodes_; // nodes in graph not locally owned by process
     bool determine_n_ghosts_;
     bool is_built_;
+    bool is_subgraph_;
 
     // external-local-id -> row remap (empty = identity); set by subset graphs
     std::vector<int64_t> local_to_row_;
@@ -447,10 +457,12 @@ protected:
     }
 
     void setup_();
+    void setupSubgraph_();
+    void subcommFree_();
     void resetGraph_();
 
 private:
-    const GraphLayout layout_;
+    GraphLayout layout_;
 
     Index filterGhostsForOwnerRank_(
         int& owner_rank,
