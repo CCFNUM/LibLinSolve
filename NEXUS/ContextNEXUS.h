@@ -90,12 +90,14 @@ public:
         {
             return; // NEXUS reads the framework storage in place
         }
-        Kokkos::deep_copy(values_mirror_, this->coeffs()->valuesRef());
-        if (!device_vectors_())
+        if (device_vectors_())
         {
-            Kokkos::deep_copy(x_mirror_, this->coeffs()->getXVector());
-            Kokkos::deep_copy(b_mirror_, this->coeffs()->getBVector());
+            return; // fully device-resident: values and x/b stay on the device
         }
+        // GPU build, host cycle: bridge the values and x/b to host mirrors
+        Kokkos::deep_copy(values_mirror_, this->coeffs()->valuesRef());
+        Kokkos::deep_copy(x_mirror_, this->coeffs()->getXVector());
+        Kokkos::deep_copy(b_mirror_, this->coeffs()->getBVector());
     }
 
     // pull the solution back (device path: NEXUS wrote the device x view
@@ -205,7 +207,7 @@ private:
         double* b_ptr = nullptr;
         double* lu_ptr = nullptr;
         double* d_ptr = nullptr;
-        bool device_vectors = false;
+        const bool all_device = !host_accessible_() && device_vectors_();
         if (host_accessible_())
         {
             // zero-copy: NEXUS works directly on the framework storage
@@ -215,41 +217,40 @@ private:
             lu_ptr = lu.LU_values.data();
             d_ptr = lu.D_values.data();
         }
+        else if (all_device)
+        {
+            // fully device-resident solve: the matrix values, x and b all stay
+            // on the device; the AMG setup consumes the device values with no
+            // host staging.  The LU buffers are unused by the jacobi device
+            // smoother, so their device pointers are attached as-is.
+            values_ptr = coeffs->valuesRef().data(); // device pointer
+            x_ptr = coeffs->getXVector().data();     // device pointer
+            b_ptr = coeffs->getBVector().data();     // device pointer
+            lu_ptr = lu.LU_values.data();
+            d_ptr = lu.D_values.data();
+        }
         else
         {
-            // device-resident coefficients (GPU build): the matrix values
-            // are staged to a host mirror per solve for the host-side AMG
-            // setup, and the LU factorization buffers are host.
-            device_vectors = device_vectors_();
+            // GPU build, host cycle (e.g. ILU0): the matrix values and x/b are
+            // staged to host mirrors per solve for the host-side setup.
             values_mirror_ =
                 Kokkos::create_mirror_view(coeffs->valuesRef());
             lu_mirror_ = Kokkos::create_mirror_view(lu.LU_values);
             d_mirror_ = Kokkos::create_mirror_view(lu.D_values);
+            x_mirror_ = Kokkos::create_mirror_view(coeffs->getXVector());
+            b_mirror_ = Kokkos::create_mirror_view(coeffs->getBVector());
             values_ptr = values_mirror_.data();
             lu_ptr = lu_mirror_.data();
             d_ptr = d_mirror_.data();
-            if (device_vectors)
-            {
-                // fully device-resident solve: x/b stay on the device
-                // (NEXUS copies the fine-level vectors device->device)
-                x_ptr = coeffs->getXVector().data(); // device pointer
-                b_ptr = coeffs->getBVector().data(); // device pointer
-            }
-            else
-            {
-                // host cycle touches x/b on the host: bridge via mirrors
-                x_mirror_ = Kokkos::create_mirror_view(coeffs->getXVector());
-                b_mirror_ = Kokkos::create_mirror_view(coeffs->getBVector());
-                x_ptr = x_mirror_.data();
-                b_ptr = b_mirror_.data();
-            }
+            x_ptr = x_mirror_.data();
+            b_ptr = b_mirror_.data();
         }
 
-        if (device_vectors)
+        if (all_device)
         {
-            callNEXUS_(NEXUS_MatrixAttachSystemDevice(matrix_, values_ptr,
-                                                      x_ptr, b_ptr),
-                       "NEXUS_MatrixAttachSystemDevice");
+            callNEXUS_(NEXUS_MatrixAttachSystemDeviceAll(matrix_, values_ptr,
+                                                         x_ptr, b_ptr),
+                       "NEXUS_MatrixAttachSystemDeviceAll");
         }
         else
         {
