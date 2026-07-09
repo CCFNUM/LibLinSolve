@@ -44,11 +44,11 @@ using RowIndex = typename CRSGraphType::size_type;
 using ColIndex = typename CRSGraphType::data_type; // used for Index type alias
 using RowPtrView = typename CRSGraphType::row_map_type::non_const_type;
 using IndexView = typename CRSGraphType::entries_type;
-using RowPtrViewHost = typename RowPtrView::HostMirror;
-using IndexViewHost = typename IndexView::HostMirror;
+using RowPtrViewHost = typename RowPtrView::host_mirror_type;
+using IndexViewHost = typename IndexView::host_mirror_type;
 
 using ScalarView = typename CRSMatrixType::values_type;
-using ScalarViewHost = typename ScalarView::HostMirror;
+using ScalarViewHost = typename ScalarView::host_mirror_type;
 
 using RangeType = Kokkos::pair<TGraphIndex, TGraphIndex>;
 using RowPtrSubview = Kokkos::Subview<RowPtrView, RangeType>;
