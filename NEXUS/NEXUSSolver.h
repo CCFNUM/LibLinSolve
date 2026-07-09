@@ -75,6 +75,7 @@ public:
         YAML::Emitter out;
         out << conf;
         config_ = out.c_str();
+        device_capable_ = deviceCapable_(conf);
     }
 
     ~NEXUS() override
@@ -90,7 +91,7 @@ public:
     {
 #ifdef HAS_NEXUS
         auto ctx = std::make_shared<ContextNEXUS<N>>(
-            "NEXUS", system_name, graph, nullptr);
+            "NEXUS", system_name, graph, nullptr, device_capable_);
         ctx_ = ctx;
         ctx_nexus_ = ctx.get();
         createSolver_(system_name);
@@ -108,7 +109,7 @@ public:
     {
 #ifdef HAS_NEXUS
         auto ctx = std::make_shared<ContextNEXUS<N>>(
-            "NEXUS", system_name, coeffs, nullptr);
+            "NEXUS", system_name, coeffs, nullptr, device_capable_);
         ctx_ = ctx;
         ctx_nexus_ = ctx.get();
         createSolver_(system_name);
@@ -168,6 +169,60 @@ public:
 
 private:
     std::string config_;
+    bool device_capable_ = false;
+
+    // A system's fine-level x/b are safe to keep device-resident only when
+    // its effective AMG cycle runs on the device (v-cycle + jacobi smoother
+    // + kokkos backend); the no-cycle smoother and ILU0 run on the host and
+    // would read the device vectors there.  Determined once from the config.
+    static bool deviceCapable_(const YAML::Node& conf)
+    {
+        auto lower = [](std::string s) {
+            for (char& c : s)
+            {
+                c = static_cast<char>(std::tolower(
+                    static_cast<unsigned char>(c)));
+            }
+            return s;
+        };
+        std::string family =
+            conf["family"] ? lower(conf["family"].as<std::string>()) : "";
+        const YAML::Node opts = conf["options"];
+        if (!opts)
+        {
+            return false;
+        }
+        // the AMG node whose cycle governs where x/b are touched
+        YAML::Node amg;
+        if (family == "gmres")
+        {
+            if (!opts["backend"] ||
+                lower(opts["backend"].as<std::string>()) != "kokkos")
+            {
+                return false; // host Krylov reads host x/b
+            }
+            amg = opts["precond"];
+        }
+        else if (family == "amgsolver")
+        {
+            amg = conf;
+        }
+        else
+        {
+            return false; // DirectLU etc.: host
+        }
+        if (!amg || !amg["options"])
+        {
+            return false;
+        }
+        const YAML::Node ao = amg["options"];
+        const auto val = [&](const char* k) {
+            return ao[k] ? lower(ao[k].as<std::string>()) : std::string();
+        };
+        return val("backend") == "kokkos" && val("cycle_type") == "v-cycle" &&
+               val("smoother_type") == "jacobi";
+    }
+
 #ifdef HAS_NEXUS
     NEXUS_Solver solver_ = nullptr;
     ContextNEXUS<N>* ctx_nexus_ = nullptr;

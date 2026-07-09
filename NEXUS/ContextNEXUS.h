@@ -42,11 +42,16 @@ public:
 
     ContextNEXUS() = delete;
 
+    // device_capable: the solver runs its full solve (including the
+    // preconditioner cycle) on the device, so the solution/RHS may stay
+    // device-resident (see NEXUSSolver::deviceCapable_)
     ContextNEXUS(const std::string& family,
                  const std::string& system_name,
                  const CRSNodeGraph* graph,
-                 const YAML::Node* node = nullptr)
-        : Base(ID::AMG, family, system_name, graph, node)
+                 const YAML::Node* node = nullptr,
+                 const bool device_capable = false)
+        : Base(ID::AMG, family, system_name, graph, node),
+          device_capable_(device_capable)
     {
         initializeNEXUS_();
     }
@@ -54,8 +59,10 @@ public:
     ContextNEXUS(const std::string& family,
                  const std::string& system_name,
                  std::shared_ptr<Coefficients> coeffs,
-                 const YAML::Node* node = nullptr)
-        : Base(ID::AMG, family, system_name, coeffs, node)
+                 const YAML::Node* node = nullptr,
+                 const bool device_capable = false)
+        : Base(ID::AMG, family, system_name, coeffs, node),
+          device_capable_(device_capable)
     {
         initializeNEXUS_();
     }
@@ -73,32 +80,47 @@ public:
         return matrix_;
     }
 
-    // stage the assembled matrix values to the host so the NEXUS AMG setup
-    // (agglomeration + factorization, host code) can read them.  x/b stay
-    // device-resident (NEXUS copies the fine-level vectors device->device),
-    // so only the values are bridged here.  No-op when the coefficient views
-    // are host-accessible (NEXUS reads them in place).
+    // stage the assembled system to the storage NEXUS reads.  On the device
+    // path only the matrix values are bridged to the host (for the host-side
+    // AMG setup); x/b stay device-resident (NEXUS copies the fine-level
+    // vectors device->device).  Otherwise (host cycle) x/b are bridged too.
     void uploadSystem()
     {
-        if (!host_accessible_())
+        if (host_accessible_())
         {
-            Kokkos::deep_copy(values_mirror_, this->coeffs()->valuesRef());
+            return; // NEXUS reads the framework storage in place
+        }
+        Kokkos::deep_copy(values_mirror_, this->coeffs()->valuesRef());
+        if (!device_vectors_())
+        {
+            Kokkos::deep_copy(x_mirror_, this->coeffs()->getXVector());
+            Kokkos::deep_copy(b_mirror_, this->coeffs()->getBVector());
         }
     }
 
-    // the solution is written into the device x view directly by NEXUS (the
-    // fine-level solve is device-resident), so nothing to pull back
-    void downloadSolution() {}
+    // pull the solution back (device path: NEXUS wrote the device x view
+    // directly, nothing to do)
+    void downloadSolution()
+    {
+        if (!host_accessible_() && !device_vectors_())
+        {
+            Kokkos::deep_copy(this->coeffs()->getXVector(), x_mirror_);
+        }
+    }
 #endif /* HAS_NEXUS */
 
 private:
+    bool device_capable_ = false;
 #ifdef HAS_NEXUS
     NEXUS_Matrix matrix_ = nullptr;
 
-    // host mirror of the matrix values only (host-side AMG setup); the
-    // solution and RHS are attached device-resident, and the LU factorization
-    // buffers are host (host factorization)
+    // host mirror of the matrix values (host-side AMG setup); on the device
+    // path the solution and RHS are attached device-resident, and the LU
+    // factorization buffers are host (host factorization).  When the system
+    // is not device-capable (host cycle) x/b keep host mirrors too.
     typename Vector::host_mirror_type values_mirror_;
+    typename Vector::host_mirror_type x_mirror_;
+    typename Vector::host_mirror_type b_mirror_;
     typename Vector::host_mirror_type lu_mirror_;
     typename Vector::host_mirror_type d_mirror_;
 
@@ -106,6 +128,13 @@ private:
     {
         return Kokkos::SpaceAccessibility<Kokkos::HostSpace,
                                           AccelMemorySpace>::accessible;
+    }
+
+    // x/b are attached device-resident when the coefficients live in device
+    // memory and the solver runs its full cycle on the device
+    bool device_vectors_() const
+    {
+        return !host_accessible_() && device_capable_;
     }
 
     void initializeNEXUS_()
@@ -174,21 +203,32 @@ private:
         }
         else
         {
-            // device-resident coefficients (GPU build): x/b stay on the
-            // device (NEXUS copies the fine-level vectors device->device);
-            // the matrix values are staged to a host mirror per solve for
-            // the host-side AMG setup, and the LU factorization buffers are
-            // host (host factorization)
-            device_vectors = true;
+            // device-resident coefficients (GPU build): the matrix values
+            // are staged to a host mirror per solve for the host-side AMG
+            // setup, and the LU factorization buffers are host.
+            device_vectors = device_vectors_();
             values_mirror_ =
                 Kokkos::create_mirror_view(coeffs->valuesRef());
             lu_mirror_ = Kokkos::create_mirror_view(lu.LU_values);
             d_mirror_ = Kokkos::create_mirror_view(lu.D_values);
             values_ptr = values_mirror_.data();
-            x_ptr = coeffs->getXVector().data(); // device pointer
-            b_ptr = coeffs->getBVector().data(); // device pointer
             lu_ptr = lu_mirror_.data();
             d_ptr = d_mirror_.data();
+            if (device_vectors)
+            {
+                // fully device-resident solve: x/b stay on the device
+                // (NEXUS copies the fine-level vectors device->device)
+                x_ptr = coeffs->getXVector().data(); // device pointer
+                b_ptr = coeffs->getBVector().data(); // device pointer
+            }
+            else
+            {
+                // host cycle touches x/b on the host: bridge via mirrors
+                x_mirror_ = Kokkos::create_mirror_view(coeffs->getXVector());
+                b_mirror_ = Kokkos::create_mirror_view(coeffs->getBVector());
+                x_ptr = x_mirror_.data();
+                b_ptr = b_mirror_.data();
+            }
         }
 
         if (device_vectors)
