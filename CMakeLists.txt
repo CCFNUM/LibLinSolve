@@ -99,6 +99,7 @@ endif()
 set(libLinSolveIncludes
     "${CMAKE_CURRENT_LIST_DIR}"
     "${CMAKE_CURRENT_LIST_DIR}/HYPRE"
+    "${CMAKE_CURRENT_LIST_DIR}/NEXUS"
     "${CMAKE_CURRENT_LIST_DIR}/PETSc"
     "${CMAKE_CURRENT_LIST_DIR}/Trilinos"
     "${CMAKE_CURRENT_LIST_DIR}/matrix"
@@ -157,6 +158,8 @@ install(FILES
   "AMGFactory.h"
   "HYPRE/ContextHYPRE.h"
   "HYPRE/HYPRESolver.h"
+  "NEXUS/ContextNEXUS.h"
+  "NEXUS/NEXUSSolver.h"
   "PETSc/ContextPETSc.h"
   "PETSc/PETScSolver.h"
   "Trilinos/ContextTrilinos.h"
