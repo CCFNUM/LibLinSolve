@@ -73,41 +73,32 @@ public:
         return matrix_;
     }
 
-    // push the assembled system to the storage NEXUS sees (no-op when the
-    // coefficient views are host-accessible: NEXUS reads them in place)
+    // stage the assembled matrix values to the host so the NEXUS AMG setup
+    // (agglomeration + factorization, host code) can read them.  x/b stay
+    // device-resident (NEXUS copies the fine-level vectors device->device),
+    // so only the values are bridged here.  No-op when the coefficient views
+    // are host-accessible (NEXUS reads them in place).
     void uploadSystem()
     {
         if (!host_accessible_())
         {
             Kokkos::deep_copy(values_mirror_, this->coeffs()->valuesRef());
-            Kokkos::deep_copy(x_mirror_, this->coeffs()->getXVector());
-            Kokkos::deep_copy(b_mirror_, this->coeffs()->getBVector());
         }
     }
 
-    // pull the solution back into the coefficient views (no-op when NEXUS
-    // wrote into them directly)
-    void downloadSolution()
-    {
-        if (!host_accessible_())
-        {
-            Kokkos::deep_copy(this->coeffs()->getXVector(), x_mirror_);
-            // The LU factorization results remain in the attached host
-            // buffers; the device-side LUData views are not refreshed (the
-            // framework does not consume them, they exist as driver-owned
-            // storage for NEXUS).
-        }
-    }
+    // the solution is written into the device x view directly by NEXUS (the
+    // fine-level solve is device-resident), so nothing to pull back
+    void downloadSolution() {}
 #endif /* HAS_NEXUS */
 
 private:
 #ifdef HAS_NEXUS
     NEXUS_Matrix matrix_ = nullptr;
 
-    // host mirrors for device-resident coefficient storage
+    // host mirror of the matrix values only (host-side AMG setup); the
+    // solution and RHS are attached device-resident, and the LU factorization
+    // buffers are host (host factorization)
     typename Vector::host_mirror_type values_mirror_;
-    typename Vector::host_mirror_type x_mirror_;
-    typename Vector::host_mirror_type b_mirror_;
     typename Vector::host_mirror_type lu_mirror_;
     typename Vector::host_mirror_type d_mirror_;
 
@@ -171,6 +162,7 @@ private:
         double* b_ptr = nullptr;
         double* lu_ptr = nullptr;
         double* d_ptr = nullptr;
+        bool device_vectors = false;
         if (host_accessible_())
         {
             // zero-copy: NEXUS works directly on the framework storage
@@ -182,24 +174,35 @@ private:
         }
         else
         {
-            // device-resident storage: attach host mirrors and synchronize
-            // around the solves (uploadSystem/downloadSolution)
+            // device-resident coefficients (GPU build): x/b stay on the
+            // device (NEXUS copies the fine-level vectors device->device);
+            // the matrix values are staged to a host mirror per solve for
+            // the host-side AMG setup, and the LU factorization buffers are
+            // host (host factorization)
+            device_vectors = true;
             values_mirror_ =
                 Kokkos::create_mirror_view(coeffs->valuesRef());
-            x_mirror_ = Kokkos::create_mirror_view(coeffs->getXVector());
-            b_mirror_ = Kokkos::create_mirror_view(coeffs->getBVector());
             lu_mirror_ = Kokkos::create_mirror_view(lu.LU_values);
             d_mirror_ = Kokkos::create_mirror_view(lu.D_values);
             values_ptr = values_mirror_.data();
-            x_ptr = x_mirror_.data();
-            b_ptr = b_mirror_.data();
+            x_ptr = coeffs->getXVector().data(); // device pointer
+            b_ptr = coeffs->getBVector().data(); // device pointer
             lu_ptr = lu_mirror_.data();
             d_ptr = d_mirror_.data();
         }
 
-        callNEXUS_(NEXUS_MatrixAttachSystem(matrix_, values_ptr, x_ptr,
-                                            b_ptr),
-                   "NEXUS_MatrixAttachSystem");
+        if (device_vectors)
+        {
+            callNEXUS_(NEXUS_MatrixAttachSystemDevice(matrix_, values_ptr,
+                                                      x_ptr, b_ptr),
+                       "NEXUS_MatrixAttachSystemDevice");
+        }
+        else
+        {
+            callNEXUS_(NEXUS_MatrixAttachSystem(matrix_, values_ptr, x_ptr,
+                                                b_ptr),
+                       "NEXUS_MatrixAttachSystem");
+        }
         callNEXUS_(NEXUS_MatrixAttachLUData(matrix_,
                                             lu.U_offsets.data(),
                                             lu_ptr,
