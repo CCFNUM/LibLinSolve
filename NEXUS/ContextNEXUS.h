@@ -144,18 +144,18 @@ private:
 
         int comm_size = 1;
         MPI_Comm_size(graph.getCommunicator(), &comm_size);
-        if (comm_size > 1)
-        {
-            throw std::runtime_error(
-                "ContextNEXUS: multi-rank systems are not supported yet "
-                "(column ordering permutation pending); run this system on "
-                "a single rank or use another solver family");
-        }
+        const bool distributed = (comm_size > 1);
 
-        // CRS pattern from the graph host arrays (single rank: the global
-        // column ordering coincides with the local one)
+        // CRS pattern from the graph host arrays.  On one rank the local and
+        // global column orderings coincide and NEXUS_MatrixCreate takes the
+        // local columns.  On multiple ranks NEXUS_MatrixCreateDistributed
+        // takes the GLOBAL columns and derives the ghost structure itself; it
+        // assigns ghost rows in ascending global-id order, which matches the
+        // owned-first / ascending-global-id column layout the mesh node graph
+        // produces (so the zero-copy value ordering is preserved).
         const auto offsets = graph.offsetsHost();
-        const auto indices = graph.indicesHost();
+        const auto local_indices = graph.indicesHost();
+        const auto global_indices = graph.globalIndicesHost();
         const Index n_rows = graph.nRows();
         std::vector<int> row_ptr(n_rows + 1);
         for (Index i = 0; i <= n_rows; ++i)
@@ -165,16 +165,30 @@ private:
         std::vector<int> col_idx(graph.nIndices());
         for (Index k = 0; k < graph.nIndices(); ++k)
         {
-            col_idx[k] = static_cast<int>(indices(k));
+            col_idx[k] = static_cast<int>(distributed ? global_indices(k)
+                                                       : local_indices(k));
         }
 
-        callNEXUS_(NEXUS_MatrixCreate(graph.getCommunicator(),
-                                      static_cast<int>(N),
-                                      static_cast<int>(n_rows),
-                                      row_ptr.data(),
-                                      col_idx.data(),
-                                      &matrix_),
-                   "NEXUS_MatrixCreate");
+        if (distributed)
+        {
+            callNEXUS_(NEXUS_MatrixCreateDistributed(graph.getCommunicator(),
+                                                     static_cast<int>(N),
+                                                     static_cast<int>(n_rows),
+                                                     row_ptr.data(),
+                                                     col_idx.data(),
+                                                     &matrix_),
+                       "NEXUS_MatrixCreateDistributed");
+        }
+        else
+        {
+            callNEXUS_(NEXUS_MatrixCreate(graph.getCommunicator(),
+                                          static_cast<int>(N),
+                                          static_cast<int>(n_rows),
+                                          row_ptr.data(),
+                                          col_idx.data(),
+                                          &matrix_),
+                       "NEXUS_MatrixCreate");
+        }
 
         // The framework owns every component of the linear system,
         // including the LU factorization buffers of coefficients::LUData
