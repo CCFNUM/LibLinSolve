@@ -41,6 +41,7 @@ enum : int
     PETSc,
     HYPRE,
     Trilinos,
+    NEXUS,
     UNDEFINED
 };
 } /* namespace ID */
@@ -53,6 +54,7 @@ static constexpr const char* SolverName[] = {"GMRES",
                                              "PETSc",
                                              "HYPRE",
                                              "Trilinos",
+                                             "NEXUS",
                                              "UNDEFINED"};
 
 template <size_t N>
@@ -72,6 +74,9 @@ class ContextDirectLU;
 
 template <size_t N>
 class ContextTrilinos;
+
+template <size_t N>
+class ContextNEXUS;
 
 template <size_t N>
 class Context
@@ -439,6 +444,11 @@ public:
         return castContextTrilinos_();
     }
 
+    operator ContextNEXUS<N>*()
+    {
+        return castContextNEXUS_();
+    }
+
     void copyProtectedSettings(std::shared_ptr<const Context> ctx);
 
 protected:
@@ -496,6 +506,13 @@ protected:
     {
         throw std::runtime_error(
             "linearSolver::Context: illegal cast to ContextTrilinos");
+        return nullptr;
+    }
+
+    virtual ContextNEXUS<N>* castContextNEXUS_()
+    {
+        throw std::runtime_error(
+            "linearSolver::Context: illegal cast to ContextNEXUS");
         return nullptr;
     }
 
