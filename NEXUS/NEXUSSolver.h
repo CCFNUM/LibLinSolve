@@ -219,13 +219,14 @@ private:
         const auto val = [&](const char* k) {
             return ao[k] ? lower(ao[k].as<std::string>()) : std::string();
         };
-        // NEXUS runs the device cycle for a jacobi smoother on both the
-        // v-cycle and the smoother-only no-cycle (kokkosCycleSupported_);
-        // either one consumes the attached device values with no host staging.
+        // NEXUS runs the device cycle for a jacobi or ILU(0) smoother on both
+        // the v-cycle and the smoother-only no-cycle (kokkosCycleSupported_);
+        // either consumes the attached device values with no host staging.
+        const std::string cyc = val("cycle_type");
+        const std::string sm = val("smoother_type");
         return val("backend") == "kokkos" &&
-               (val("cycle_type") == "v-cycle" ||
-                val("cycle_type") == "no-cycle") &&
-               val("smoother_type") == "jacobi";
+               (cyc == "v-cycle" || cyc == "no-cycle") &&
+               (sm == "jacobi" || sm == "ilu0");
     }
 
 #ifdef HAS_NEXUS
