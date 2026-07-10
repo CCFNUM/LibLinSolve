@@ -219,7 +219,12 @@ private:
         const auto val = [&](const char* k) {
             return ao[k] ? lower(ao[k].as<std::string>()) : std::string();
         };
-        return val("backend") == "kokkos" && val("cycle_type") == "v-cycle" &&
+        // NEXUS runs the device cycle for a jacobi smoother on both the
+        // v-cycle and the smoother-only no-cycle (kokkosCycleSupported_);
+        // either one consumes the attached device values with no host staging.
+        return val("backend") == "kokkos" &&
+               (val("cycle_type") == "v-cycle" ||
+                val("cycle_type") == "no-cycle") &&
                val("smoother_type") == "jacobi";
     }
 
