@@ -9,7 +9,7 @@
 #include "CRSResidual.h"
 #include "coefficients.h"
 #include "controlData.h"
-#include "ngpUtilsReduction.hpp"
+#include "kokkosReductionUtils.hpp"
 #include <cassert>
 #include <cmath>
 #include <mpi.h>
@@ -60,9 +60,9 @@ constexpr Array<N> RMSError(const MPI_Comm comm,
 
     using ScalarType = VectorType::value_type;
     using ReduceValueType =
-        accel::NgpUtils::Reduction::FixedArray<ScalarType, BLOCKSIZE>;
+        NgpUtils::Reduction::FixedArray<ScalarType, BLOCKSIZE>;
     using ReducerType =
-        accel::NgpUtils::Reduction::FixedArraySum<ScalarType, BLOCKSIZE>;
+        NgpUtils::Reduction::FixedArraySum<ScalarType, BLOCKSIZE>;
 
     ReduceValueType rmsRed;
     ReducerType reducer(rmsRed);
@@ -121,9 +121,8 @@ constexpr Array<N> RMSErrorDiagNormalized(const coefficients<N>& coeff)
     const Index nrows = coeff.nCoefficients(); // rank local rows
 
     using ReduceValueType =
-        accel::NgpUtils::Reduction::FixedArray<DataType, BLOCKSIZE>;
-    using ReducerType =
-        accel::NgpUtils::Reduction::FixedArraySum<DataType, BLOCKSIZE>;
+        NgpUtils::Reduction::FixedArray<DataType, BLOCKSIZE>;
+    using ReducerType = NgpUtils::Reduction::FixedArraySum<DataType, BLOCKSIZE>;
 
     ReduceValueType rmsRed;
     ReducerType reducer(rmsRed);
