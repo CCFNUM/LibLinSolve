@@ -95,7 +95,14 @@ public:
 
     using scalar_type = double;
     using local_ordinal_type = int;
+#ifdef _WIN32
+    // MinGW/MSVC use the LLP64 model where `long` is 32-bit. Tpetra's explicit
+    // template instantiation on Windows is built for GlobalOrdinal=long long
+    // (64-bit), so match it here. On LP64 (Linux) `long` is already 64-bit.
+    using global_ordinal_type = long long;
+#else
     using global_ordinal_type = long;
+#endif
     using node_type = Tpetra::Map<>::node_type;
     using map_type =
         Tpetra::Map<local_ordinal_type, global_ordinal_type, node_type>;
