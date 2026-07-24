@@ -12,11 +12,11 @@ option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
 
 if(WITH_CUDA)
     message(STATUS "Enabling CUDA support")
-    set(USE_KOKKOS ON)
+    set(WITH_KOKKOS ON)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 elseif(WITH_OPENMP)
     message(STATUS "Enabling OpenMP support")
-    set(USE_KOKKOS ON)
+    set(WITH_KOKKOS ON)
 endif()
 
 add_compile_options(
@@ -49,7 +49,7 @@ endif()
 option(MPI_CXX_SKIP_MPICXX "Skip MPI C++ bindings" ON)
 find_package(MPI REQUIRED)
 
-if(USE_KOKKOS)
+if(WITH_KOKKOS)
     message(STATUS "Enabling Kokkos support")
     find_package(Kokkos REQUIRED)
     find_package(KokkosKernels REQUIRED)
@@ -128,8 +128,8 @@ target_include_directories(${libLinSolve}
 )
 target_link_libraries(${libLinSolve} PRIVATE MPI::MPI_C)
 
-if(USE_KOKKOS)
-    target_compile_definitions(${libLinSolve} PUBLIC USE_KOKKOS)
+if(WITH_KOKKOS)
+    target_compile_definitions(${libLinSolve} PUBLIC HAS_KOKKOS)
     target_link_libraries(${libLinSolve}
         PUBLIC
         Kokkos::kokkos

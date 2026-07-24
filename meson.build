@@ -67,7 +67,7 @@ if get_option('USE_HYPRE')
     cpp_args += '-DHAS_HYPRE'
   endif
 endif
-if get_option('USE_TRILINOS')
+if get_option('WITH_TRILINOS')
   deps += dependency('Trilinos', method: 'cmake', modules: ['Trilinos::all_libs'], required: true)
   if get_option('CONFIG')
     conf.set('HAS_TRILINOS', true)
@@ -75,15 +75,12 @@ if get_option('USE_TRILINOS')
     cpp_args += '-DHAS_TRILINOS'
   endif
 endif
-if get_option('USE_KOKKOS')
+if get_option('WITH_KOKKOS')
   deps += dependency('Kokkos', method: 'cmake', modules: ['Kokkos::all_libs'], required: true)
   if get_option('CONFIG')
-    # FIXME [faw 2026-06-02]: use HAS_KOKKOS
-    # conf.set('HAS_KOKKOS', true)
-    conf.set('USE_KOKKOS', true)
+    conf.set('HAS_KOKKOS', true)
   else
-    # cpp_args += '-DHAS_KOKKOS'
-    cpp_args += '-DUSE_KOKKOS'
+    cpp_args += '-DHAS_KOKKOS'
   endif
 endif
 
