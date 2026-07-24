@@ -32,18 +32,17 @@ using AccelExecSpace = Kokkos::DefaultExecutionSpace;
 using AccelMemorySpace = AccelExecSpace::memory_space;
 using AccelDeviceType = Kokkos::Device<AccelExecSpace, AccelMemorySpace>;
 
-// using CRSMatrixType = KokkosSparse::
-//     CrsMatrix<TRealSolver, TGraphIndex, AccelDeviceType, void, TGraphIndex>;
-using CRSMatrixType = KokkosSparse::Experimental::
-    BsrMatrix<TRealSolver, TGraphIndex, AccelDeviceType>;
+using CRSRowMatrixType = KokkosSparse::
+    CrsMatrix<TRealSolver, TGraphIndex, AccelDeviceType, void, size_t>;
+using CRSBlockMatrixType = KokkosSparse::Experimental::
+    BsrMatrix<TRealSolver, TGraphIndex, AccelDeviceType, void, size_t>;
+
+using CRSMatrixType = CRSBlockMatrixType;
 
 using CRSGraphType = typename CRSMatrixType::staticcrsgraph_type;
 using RowIndex = typename CRSGraphType::size_type;
 using ColIndex = typename CRSGraphType::data_type; // used for Index type alias
-using RowPtrView = Kokkos::View<RowIndex*,
-                                typename CRSGraphType::array_layout,
-                                typename CRSGraphType::device_type,
-                                typename CRSGraphType::memory_traits>;
+using RowPtrView = typename CRSGraphType::row_map_type::non_const_type;
 using IndexView = typename CRSGraphType::entries_type;
 using RowPtrViewHost = typename RowPtrView::HostMirror;
 using IndexViewHost = typename IndexView::HostMirror;

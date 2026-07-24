@@ -22,6 +22,7 @@ public:
     using Index = CRSNodeGraph::Index;
     using IndexView = CRSNodeGraph::IndexView;
     using IndexSubview = CRSNodeGraph::IndexSubview;
+
     CRSConnectivity() = delete;
 
     CRSConnectivity(const CRSNodeGraph* graph) : graph_(*graph)
@@ -78,7 +79,7 @@ public:
         return graph_.nGlobalIndices();
     }
 
-    KOKKOS_INLINE_FUNCTION const Index* offsetsPtr() const
+    KOKKOS_INLINE_FUNCTION const RowIndex* offsetsPtr() const
     {
         return graph_.offsets().data();
     }
