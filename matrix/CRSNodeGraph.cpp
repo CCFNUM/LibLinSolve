@@ -35,7 +35,8 @@ void CRSNodeGraph::buildGraph()
     if (isGraphMember())
     {
         assert(row_ptr_.size() > 1);
-        assert(static_cast<Index>(primary_indices_.size()) == row_ptr_.back());
+        assert(static_cast<Index>(primary_indices_.size()) ==
+            row_ptr_(row_ptr_.extent(0) - 1));
         n_owned_nodes_ = static_cast<Index>(row_ptr_.size()) - 1;
 
         computeAuxiliaryData_();
@@ -88,10 +89,12 @@ void CRSNodeGraph::buildGraph()
         // c.)
         assert(n_owned_nodes_ ==
                static_cast<Index>(diagonal_row_offset_.size()));
-        for (const Index i : diagonal_row_offset_)
+        for (size_t i = 0; i < diagonal_row_offset_.size(); ++i)
         {
-            assert(i >= 0);
+            assert(diagonal_row_offset_(i) >= 0);
         }
+    }
+
 #endif /* NDEBUG */
     }
     else
@@ -113,37 +116,37 @@ void CRSNodeGraph::buildGraph()
     }
 }
 
-std::span<const CRSNodeGraph::Index> CRSNodeGraph::localIndices() const
+const CRSNodeGraph::entries_type& CRSNodeGraph::localIndices() const
 {
     if (this->isLocalColumnOrder())
     {
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
-        return std::span<const Index>(primary_indices_); // sorted
+        return primary_indices_; // sorted
     }
     else
     {
         assert(static_cast<Index>(secondary_indices_.size()) ==
                this->nIndices());
-        return std::span<const Index>(secondary_indices_); // not sorted
+        return secondary_indices_; // not sorted
     }
 }
 
-std::span<const CRSNodeGraph::Index> CRSNodeGraph::globalIndices() const
+const CRSNodeGraph::entries_type& CRSNodeGraph::globalIndices() const
 {
     if (this->isGlobalColumnOrder())
     {
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
-        return std::span<const Index>(primary_indices_); // sorted
+        return primary_indices_; // sorted
     }
     else
     {
         assert(static_cast<Index>(secondary_indices_.size()) ==
                this->nIndices());
-        return std::span<const Index>(secondary_indices_); // not sorted
+        return secondary_indices_; // not sorted
     }
 }
 
-std::span<const CRSNodeGraph::Index>
+CRSNodeGraph::entries_subview_type
 CRSNodeGraph::rowLocalIndices(const Index i_row) const
 {
     assert(0 <= i_row);
@@ -157,19 +160,21 @@ CRSNodeGraph::rowLocalIndices(const Index i_row) const
     if (this->isLocalColumnOrder())
     {
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
-        return std::span<const Index>(primary_indices_) // sorted
-            .subspan(row_ptr_[i_row], row_ptr_[i_row + 1] - row_ptr_[i_row]);
+        return Kokkos::subview(
+            primary_indices_,
+            Kokkos::make_pair(row_ptr_[i_row], row_ptr_[i_row + 1]));
     }
     else
     {
         assert(static_cast<Index>(secondary_indices_.size()) ==
                this->nIndices());
-        return std::span<const Index>(secondary_indices_) // not sorted
-            .subspan(row_ptr_[i_row], row_ptr_[i_row + 1] - row_ptr_[i_row]);
+        return Kokkos::subview(
+            secondary_indices_,
+            Kokkos::make_pair(row_ptr_[i_row], row_ptr_[i_row + 1]));
     }
 }
 
-std::span<const CRSNodeGraph::Index>
+CRSNodeGraph::entries_subview_type
 CRSNodeGraph::rowGlobalIndices(const Index i_row) const
 {
     assert(0 <= i_row);
@@ -183,15 +188,17 @@ CRSNodeGraph::rowGlobalIndices(const Index i_row) const
     if (this->isGlobalColumnOrder())
     {
         assert(static_cast<Index>(primary_indices_.size()) == this->nIndices());
-        return std::span<const Index>(primary_indices_) // sorted
-            .subspan(row_ptr_[i_row], row_ptr_[i_row + 1] - row_ptr_[i_row]);
+        return Kokkos::subview(
+            primary_indices_,
+            Kokkos::make_pair(row_ptr_[i_row], row_ptr_[i_row + 1]));
     }
     else
     {
         assert(static_cast<Index>(secondary_indices_.size()) ==
                this->nIndices());
-        return std::span<const Index>(secondary_indices_) // not sorted
-            .subspan(row_ptr_[i_row], row_ptr_[i_row + 1] - row_ptr_[i_row]);
+        return Kokkos::subview(
+            secondary_indices_,
+            Kokkos::make_pair(row_ptr_[i_row], row_ptr_[i_row + 1]));
     }
 }
 
@@ -242,19 +249,19 @@ void CRSNodeGraph::serialize(std::ofstream& out) const
     out.write(p64, sizeof(uint64_t));
 
     // data
-    for (const Index i : row_ptr_)
+    for (size_t i = 0; i < row_ptr_.extent(0); ++i)
     {
-        v64 = i;
+        v64 = row_ptr_(i);
         out.write(p64, sizeof(uint64_t));
     }
-    for (const Index i : primary_indices_)
+    for (size_t i = 0; i < primary_indices_.extent(0); ++i)
     {
-        v64 = i;
+        v64 = primary_indices_(i);
         out.write(p64, sizeof(uint64_t));
     }
-    for (const Index i : secondary_indices_)
+    for (size_t i = 0; i < secondary_indices_.extent(0); ++i)
     {
-        v64 = i;
+        v64 = secondary_indices_(i);
         out.write(p64, sizeof(uint64_t));
     }
 }
@@ -268,10 +275,13 @@ void CRSNodeGraph::deserialize(std::ifstream& in)
     in.read(p64, sizeof(uint64_t));
     n_owned_nodes_ = static_cast<Index>(v64);
     in.read(p64, sizeof(uint64_t));
-    row_ptr_.resize(v64, 0);
+    Kokkos::resize(row_ptr_, v64);
+    Kokkos::deep_copy(row_ptr_, 0);
     in.read(p64, sizeof(uint64_t));
-    primary_indices_.resize(v64, 0);
-    secondary_indices_.resize(v64, 0);
+    Kokkos::resize(primary_indices_, v64);
+    Kokkos::deep_copy(primary_indices_, 0);
+    Kokkos::resize(secondary_indices_, v64);
+    Kokkos::deep_copy(secondary_indices_, 0);
 
     for (size_t i = 0; i < row_ptr_.size(); i++)
     {
@@ -523,7 +533,8 @@ void CRSNodeGraph::computeDiagonalIndices_()
                static_cast<Index>(diagonal_row_offset_.size()));
         return;
     }
-    diagonal_row_offset_.resize(n_owned_nodes_, -1);
+    Kokkos::resize(diagonal_row_offset_, n_owned_nodes_);
+    Kokkos::deep_copy(diagonal_row_offset_, -1);
     const auto local_idx = this->localIndices();
     for (Index i = 0; i < n_owned_nodes_; i++)
     {
@@ -558,8 +569,11 @@ void CRSNodeGraph::computeRowNonZeros_()
         assert(row_nnz_owned_.size() == row_nnz_ghost_.size());
         return;
     }
-    row_nnz_owned_.resize(n_owned_nodes_, 0);
-    row_nnz_ghost_.resize(n_owned_nodes_, 0);
+    Kokkos::resize(row_nnz_owned_, n_owned_nodes_);
+    Kokkos::deep_copy(row_nnz_owned_, 0);
+    Kokkos::resize(row_nnz_ghost_, n_owned_nodes_);
+    Kokkos::deep_copy(row_nnz_ghost_, 0);
+
     const auto local_idx = this->localIndices();
     for (Index i = 0; i < n_owned_nodes_; i++)
     {
@@ -631,10 +645,9 @@ void CRSNodeGraph::sortPrimaryIndices_()
     std::vector<Index> permute;
     for (Index i_row = 0; i_row < n_owned_nodes_; ++i_row)
     {
-        std::span<Index> primary_idx =
-            std::span<Index>(primary_indices_)
-                .subspan(row_ptr_[i_row],
-                         row_ptr_[i_row + 1] - row_ptr_[i_row]);
+        auto primary_idx = Kokkos::subview(
+            primary_indices_,
+            Kokkos::make_pair(row_ptr_[i_row], row_ptr_[i_row + 1]));
 
         permute.resize(primary_idx.size());
         std::iota(permute.begin(), permute.end(), 0);
@@ -646,10 +659,9 @@ void CRSNodeGraph::sortPrimaryIndices_()
 
         if (has_secondary)
         {
-            std::span<Index> secondary_idx =
-                std::span<Index>(secondary_indices_)
-                    .subspan(row_ptr_[i_row],
-                             row_ptr_[i_row + 1] - row_ptr_[i_row]);
+            auto secondary_idx = Kokkos::subview(
+                secondary_indices_,
+                Kokkos::make_pair(row_ptr_[i_row], row_ptr_[i_row + 1]));
             CRSNodeGraph::permuteCopy_(secondary_idx.data(), buffer, permute);
         }
     }
@@ -735,13 +747,14 @@ void CRSNodeGraph::resetGraph_()
     global_number_nodes_ = ~0;
     global_number_indices_ = ~0ull;
 
-    row_ptr_.clear();
-    primary_indices_.clear();
-    secondary_indices_.clear();
+    // DAVEKOKKOS: should be row_map_type_
+    row_ptr_ = entries_type{};
+    primary_indices_ = entries_type{};
+    secondary_indices_ = entries_type{};
 
-    row_nnz_owned_.clear();
-    row_nnz_ghost_.clear();
-    diagonal_row_offset_.clear();
+    row_nnz_owned_ = entries_type{};
+    row_nnz_ghost_ = entries_type{};
+    diagonal_row_offset_ = entries_type{};
 
     pack_infos_.clear();
 }

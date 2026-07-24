@@ -20,7 +20,8 @@ class CRSConnectivity
 {
 public:
     using Index = CRSNodeGraph::Index;
-
+    using entries_type = CRSNodeGraph::entries_type;
+    using entries_subview_type = CRSNodeGraph::entries_subview_type;
     CRSConnectivity() = delete;
 
     CRSConnectivity(const CRSNodeGraph* graph) : graph_(graph)
@@ -82,7 +83,8 @@ public:
         return graph_->offsets().data();
     }
 
-    inline const std::vector<Index>& offsetsRef() const
+    // DAVEKOKKOS: should be row_map_type_!!
+    inline const entries_type& offsetsRef() const
     {
         return graph_->offsets();
     }
@@ -92,7 +94,7 @@ public:
         return graph_->indices().data();
     }
 
-    inline const std::vector<Index>& indicesRef() const
+    inline const entries_type& indicesRef() const
     {
         return graph_->indices();
     }
@@ -102,18 +104,19 @@ public:
         return graph_->diagonalIndicesOffset().data();
     }
 
-    inline const std::vector<Index>& diagOffsetRef() const
+    inline const entries_type& diagOffsetRef() const
     {
         return graph_->diagonalIndicesOffset();
     }
 
-    inline std::span<const Index> rowCols(Index iRow) const
+    inline entries_subview_type rowCols(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
         const auto& row_ptr = this->offsetsRef();
-        return std::span<const Index>(this->indicesRef())
-            .subspan(row_ptr[iRow], row_ptr[iRow + 1] - row_ptr[iRow]);
+        return Kokkos::subview(
+            this->indicesRef(),
+            Kokkos::make_pair(row_ptr[iRow], row_ptr[iRow + 1]));
     }
 
     inline Index localToGlobal(Index localID) const

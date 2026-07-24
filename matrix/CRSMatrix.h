@@ -35,6 +35,27 @@ public:
 
     static constexpr Index BLOCKSIZE = N;
 
+    // DAVEKOKKOS: move accelexecspace to global
+    using AccelExecSpace = Kokkos::DefaultExecutionSpace;
+    using execution_space = AccelExecSpace;
+    using memory_space = execution_space::memory_space;
+    using device_type = Kokkos::Device<execution_space, memory_space>;
+
+    // using matrix_type =
+    //     KokkosSparse::CrsMatrix<DataType, Index, device_type, void, Index>;
+    using matrix_type = KokkosSparse::Experimental::
+        BsrMatrix<DataType, Index, device_type, void, Index>;
+
+    using graph_type = typename matrix_type::staticcrsgraph_type;
+    using row_map_type = typename graph_type::row_map_type;
+    using entries_type = typename graph_type::entries_type;
+    using values_type = typename matrix_type::values_type;
+
+    using range_type = Kokkos::pair<Index, Index>;
+    using row_map_subview_type = Kokkos::Subview<row_map_type, range_type>;
+    using entries_subview_type = Kokkos::Subview<entries_type, range_type>;
+    using values_subview_type = Kokkos::Subview<values_type, range_type>;
+
 private:
     template <typename T>
     std::vector<char> gatherToGlobal_(const T* values,
@@ -57,7 +78,8 @@ private:
 
 protected:
     MemoryLayout memory_layout_;
-    std::vector<DataType> values_; // flat values array
+    values_type values_; // flat values array
+    matrix_type crsmatrix_;
 
 public:
     CRSMatrix() = delete;
@@ -72,8 +94,13 @@ public:
     {
         if (allocate_values)
         {
-            values_.resize(this->nnz(), static_cast<DataType>(0));
+            Kokkos::resize(values_, this->nnz());
+            Kokkos::deep_copy(values_, static_cast<DataType>(0));
         }
+
+        graph_type mygraph(graph->indices(), graph->offsets());
+        crsmatrix_ = matrix_type(
+            "CRSMatrix", this->nRows(), values_, mygraph, BLOCKSIZE);
     }
 
     // Access / on-the-fly operations
@@ -97,35 +124,53 @@ public:
         return values_.data();
     }
 
-    inline std::span<DataType> valuesRef()
+    inline values_type& valuesRef()
     {
-        return std::span<DataType>(values_);
+        return values_;
     }
 
-    inline std::span<const DataType> valuesRef() const
+    inline const values_type& valuesRef() const
     {
-        return std::span<const DataType>(values_);
+        return values_;
     }
 
-    inline std::span<DataType> rowVals(Index iRow)
+    inline values_subview_type rowVals(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
         const auto& offsets = this->offsetsRef();
-        return std::span<DataType>(values_).subspan(
-            BLOCKSIZE * BLOCKSIZE * offsets[iRow],
-            BLOCKSIZE * BLOCKSIZE * (offsets[iRow + 1] - offsets[iRow]));
+        return Kokkos::subview(
+            values_,
+            Kokkos::make_pair(BLOCKSIZE * BLOCKSIZE * offsets[iRow],
+                              BLOCKSIZE * BLOCKSIZE * offsets[iRow + 1]));
     }
 
-    inline const std::span<const DataType> rowVals(Index iRow) const
+    inline auto blockRowVals(Index iRow) const
     {
         assert(0 <= iRow);
         assert(iRow < this->nRows());
-        const auto& offsets = this->offsetsRef();
-        return std::span<const DataType>(values_).subspan(
-            BLOCKSIZE * BLOCKSIZE * offsets[iRow],
-            BLOCKSIZE * BLOCKSIZE * (offsets[iRow + 1] - offsets[iRow]));
+        return crsmatrix_.block_row(iRow);
     }
+
+    inline entries_subview_type blockRowCols(Index iRow) const
+    {
+        assert(0 <= iRow);
+        assert(iRow < this->nRows());
+        const Index begin = crsmatrix_.graph.row_map(iRow);
+        const Index end = crsmatrix_.graph.row_map(iRow + 1);
+        return Kokkos::subview(crsmatrix_.graph.entries,
+                               Kokkos::pair<Index, Index>(begin, end));
+    }
+
+    // inline const std::span<const DataType> rowVals(Index iRow) const
+    // {
+    //     assert(0 <= iRow);
+    //     assert(iRow < this->nRows());
+    //     const auto& offsets = this->offsetsRef();
+    //     return std::span<const DataType>(values_).subspan(
+    //         BLOCKSIZE * BLOCKSIZE * offsets[iRow],
+    //         BLOCKSIZE * BLOCKSIZE * (offsets[iRow + 1] - offsets[iRow]));
+    // }
 
     inline DataType& dofDiag(Index iRow, Index dof = 0)
     {

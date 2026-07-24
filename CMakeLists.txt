@@ -45,6 +45,7 @@ if(USE_KOKKOS)
     message(STATUS "Enabling Kokkos support")
     add_compile_options("-DUSE_KOKKOS")
     find_package(Kokkos REQUIRED)
+    find_package(KokkosKernels REQUIRED)
 endif()
 
 # Optional Trilinos linear solver support
@@ -114,7 +115,11 @@ target_include_directories(${libLinSolve}
 target_link_libraries(${libLinSolve} PRIVATE MPI::MPI_C)
 
 if(USE_KOKKOS)
-    target_link_libraries(${libLinSolve} PRIVATE Kokkos::kokkos)
+    target_link_libraries(${libLinSolve}
+        PRIVATE
+        Kokkos::kokkos
+        KokkosKernels::kokkoskernels
+    )
 endif()
 
 if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
