@@ -84,6 +84,16 @@ if(WITH_TRILINOS_SOLVER AND NOT Trilinos_FOUND)
         if(TRILINOS_LINEAR_SOLVER_AVAILABLE)
             add_compile_definitions(HAS_TRILINOS)
             message(STATUS "Trilinos linear solver support: ENABLED")
+
+            # Optional MueLu algebraic multigrid preconditioner
+            set(TRILINOS_MUELU_AVAILABLE FALSE)
+            list(FIND Trilinos_PACKAGE_LIST MueLu muelu_pkg_index)
+            if(muelu_pkg_index GREATER -1)
+                set(TRILINOS_MUELU_AVAILABLE TRUE)
+                message(STATUS "  Trilinos package MueLu: found")
+            else()
+                message(STATUS "  Trilinos package MueLu: NOT FOUND")
+            endif()
         else()
             message(STATUS "Trilinos linear solver support: DISABLED (missing required packages)")
         endif()
@@ -143,6 +153,12 @@ if(WITH_TRILINOS_SOLVER AND TRILINOS_LINEAR_SOLVER_AVAILABLE)
         Ifpack2::all_libs
         Tpetra::all_libs
     )
+    if(TRILINOS_MUELU_AVAILABLE)
+        target_compile_definitions(${libLinSolve} PUBLIC HAS_MUELU)
+        target_link_libraries(${libLinSolve} PUBLIC
+            MueLu::all_libs
+        )
+    endif()
     if(WITH_CUDA)
         target_link_options(${libLinSolve} PUBLIC -Wl,--allow-multiple-definition)
     endif()

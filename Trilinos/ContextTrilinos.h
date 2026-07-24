@@ -14,6 +14,9 @@
 #include <BelosSolverFactory.hpp>
 #include <BelosTpetraAdapter.hpp>
 #include <Ifpack2_Factory.hpp>
+#ifdef HAS_MUELU
+#include <MueLu_CreateTpetraPreconditioner.hpp>
+#endif /* HAS_MUELU */
 #include <Teuchos_Array.hpp>
 #include <Teuchos_DefaultMpiComm.hpp>
 #include <Teuchos_OpaqueWrapper.hpp>
@@ -143,7 +146,8 @@ public:
                      node),
           is_initialized_(false), matrix_initialized_(false),
           use_preconditioner_(false), preconditioner_initialized_(false),
-          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION")
+          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION"),
+          preconditioner_family_(PreconditionerFamily::None)
     {
         configureFromYaml_(node);
     }
@@ -159,7 +163,8 @@ public:
                      node),
           is_initialized_(false), matrix_initialized_(false),
           use_preconditioner_(false), preconditioner_initialized_(false),
-          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION")
+          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION"),
+          preconditioner_family_(PreconditionerFamily::None)
     {
         configureFromYaml_(node);
     }
@@ -174,6 +179,22 @@ public:
         if (!is_initialized_)
         {
             this->initialize_();
+            if (preconditioner_family_ == PreconditionerFamily::Ifpack2)
+            {
+                Teuchos::RCP<typename Trilinos::PC> ifpack_prec =
+                    Teuchos::rcp_dynamic_cast<typename Trilinos::PC>(
+                        right_prec_);
+                if (!ifpack_prec.is_null())
+                {
+                    ifpack_prec->compute();
+                }
+            }
+#ifdef HAS_MUELU
+            else if (preconditioner_family_ == PreconditionerFamily::MueLu)
+            {
+                createMueLuPreconditioner_();
+            }
+#endif /* HAS_MUELU */
         }
 
         copyCoefficients_();
@@ -194,8 +215,7 @@ public:
         const std::string pfx = Context<N>::info(os, prefix);
         os << pfx << '\t' << "Belos solver:     " << belos_solver_name_ << '\n';
         os << pfx << '\t' << "Preconditioner:   "
-           << (use_preconditioner_ ? preconditioner_type_ : std::string("none"))
-           << '\n';
+           << preconditionerName_() << '\n';
         return pfx;
     }
 
@@ -207,9 +227,9 @@ public:
                 new typename Trilinos::Problem(matrix_, x_vec_, b_vec_));
         }
         belos_problem_->setProblem();
-        if (use_preconditioner_ && !preconditioner_.is_null())
+        if (use_preconditioner_ && !right_prec_.is_null())
         {
-            belos_problem_->setRightPrec(preconditioner_);
+            belos_problem_->setRightPrec(right_prec_);
         }
         else
         {
@@ -343,13 +363,20 @@ protected:
     }
 
 private:
+    enum class PreconditionerFamily
+    {
+        None,
+        Ifpack2,
+        MueLu
+    };
+
     Teuchos::RCP<const Teuchos::Comm<int>> comm_;
 
     Teuchos::RCP<const typename Trilinos::Map> map_;
     Teuchos::RCP<typename Trilinos::Matrix> matrix_;
     Teuchos::RCP<typename Trilinos::Vector> x_vec_;
     Teuchos::RCP<typename Trilinos::Vector> b_vec_;
-    Teuchos::RCP<typename Trilinos::PC> preconditioner_;
+    Teuchos::RCP<typename Trilinos::OP> right_prec_;
     Teuchos::RCP<typename Trilinos::Problem> belos_problem_;
     Teuchos::RCP<typename Trilinos::Solver> belos_solver_;
 
@@ -357,9 +384,19 @@ private:
     Teuchos::ParameterList preconditioner_params_;
     bool is_initialized_;
     bool matrix_initialized_;
+#ifdef HAS_MUELU
+    Teuchos::ParameterList muelu_params_;
+#endif /* HAS_MUELU */
+
+    // local CRS row-based storage
+    typename LocalSystem::crs_rowmap_t rowcrs_row_ptr_;
+    typename LocalSystem::crs_entries_t rowcrs_indices_;
+    typename LocalSystem::crs_values_t rowcrs_values_;
+
     bool use_preconditioner_;
     std::string belos_solver_name_;
     std::string preconditioner_type_;
+    PreconditionerFamily preconditioner_family_;
 
     void initialize_()
     {
@@ -419,10 +456,24 @@ private:
                     if (prec == "none")
                     {
                         use_preconditioner_ = false;
+                        preconditioner_family_ = PreconditionerFamily::None;
+                    }
+                    else if (prec == "muelu")
+                    {
+#ifdef HAS_MUELU
+                        use_preconditioner_ = true;
+                        preconditioner_family_ = PreconditionerFamily::MueLu;
+                        preconditioner_type_ = "MueLu";
+#else
+                        throw std::runtime_error(
+                            "ContextTrilinos: MueLu preconditioner requested "
+                            "but not available in this build");
+#endif /* HAS_MUELU */
                     }
                     else
                     {
                         use_preconditioner_ = true;
+                        preconditioner_family_ = PreconditionerFamily::Ifpack2;
                         preconditioner_type_ =
                             details::mapIfpackPreconditioner(prec);
                     }
@@ -434,7 +485,18 @@ private:
                     {
                         const std::string key =
                             entry.first.template as<std::string>();
-                        addPreconditionerParameter_(key, entry.second);
+                        if (preconditioner_family_ ==
+                            PreconditionerFamily::MueLu)
+                        {
+#ifdef HAS_MUELU
+                            addParameterToList_(muelu_params_, key,
+                                                entry.second);
+#endif /* HAS_MUELU */
+                        }
+                        else
+                        {
+                            addPreconditionerParameter_(key, entry.second);
+                        }
                     }
                 }
             }
@@ -515,12 +577,21 @@ private:
 
         if (use_preconditioner_)
         {
-            if (preconditioner_type_ == "RELAXATION" &&
-                !preconditioner_params_.isParameter("relaxation: type"))
+            if (preconditioner_family_ == PreconditionerFamily::Ifpack2)
             {
-                preconditioner_params_.set("relaxation: type", "Jacobi");
+                if (preconditioner_type_ == "RELAXATION" &&
+                    !preconditioner_params_.isParameter("relaxation: type"))
+                {
+                    preconditioner_params_.set("relaxation: type", "Jacobi");
+                }
+                createIfpack2Preconditioner_();
             }
-            createPreconditioner_();
+#ifdef HAS_MUELU
+            else if (preconditioner_family_ == PreconditionerFamily::MueLu)
+            {
+                createMueLuPreconditioner_();
+            }
+#endif /* HAS_MUELU */
         }
     }
 
@@ -528,7 +599,7 @@ private:
     {
         belos_solver_ = Teuchos::null;
         belos_problem_ = Teuchos::null;
-        preconditioner_ = Teuchos::null;
+        right_prec_ = Teuchos::null;
         rowcrs_row_ptr_ = typename LocalSystem::crs_rowmap_t{};
         rowcrs_indices_ = typename LocalSystem::crs_entries_t{};
         rowcrs_values_ = typename LocalSystem::crs_values_t{};
@@ -545,15 +616,26 @@ private:
         belos_solver_ = factory.create(belos_solver_name_, belos_params_);
     }
 
-    void createPreconditioner_()
+    void createIfpack2Preconditioner_()
     {
         typename Trilinos::PCFactory factory;
-        preconditioner_ = factory.template create<typename Trilinos::Matrix>(
-            preconditioner_type_.empty() ? "RELAXATION" : preconditioner_type_,
-            matrix_);
-        preconditioner_->setParameters(preconditioner_params_);
-        preconditioner_->initialize();
+        Teuchos::RCP<typename Trilinos::PC> prec =
+            factory.template create<typename Trilinos::Matrix>(
+                preconditioner_type_.empty() ? "RELAXATION"
+                                             : preconditioner_type_,
+                matrix_);
+        prec->setParameters(preconditioner_params_);
+        prec->initialize();
+        right_prec_ = prec;
     }
+
+#ifdef HAS_MUELU
+    void createMueLuPreconditioner_()
+    {
+        Teuchos::RCP<typename Trilinos::OP> op = matrix_;
+        right_prec_ = MueLu::CreateTpetraPreconditioner(op, muelu_params_);
+    }
+#endif /* HAS_MUELU */
 
     void addPreconditionerParameter_(const std::string& key,
                                      const YAML::Node& value)
@@ -589,6 +671,76 @@ private:
         }
 
         preconditioner_params_.set(key, scalar);
+    }
+
+#ifdef HAS_MUELU
+    void addParameterToList_(Teuchos::ParameterList& params,
+                             const std::string& key,
+                             const YAML::Node& value)
+    {
+        if (value.IsMap())
+        {
+            Teuchos::ParameterList& sublist = params.sublist(key);
+            for (const auto& entry : value)
+            {
+                const std::string subkey =
+                    entry.first.template as<std::string>();
+                addParameterToList_(sublist, subkey, entry.second);
+            }
+            return;
+        }
+
+        if (!value.IsScalar())
+        {
+            return;
+        }
+
+        const std::string scalar = value.Scalar();
+        if (details::isBoolString(scalar))
+        {
+            params.set(key, value.template as<bool>());
+            return;
+        }
+
+        try
+        {
+            params.set(key, value.template as<int>());
+            return;
+        }
+        catch (const YAML::BadConversion&)
+        {
+        }
+
+        try
+        {
+            params.set(key, value.template as<double>());
+            return;
+        }
+        catch (const YAML::BadConversion&)
+        {
+        }
+
+        params.set(key, scalar);
+    }
+#endif /* HAS_MUELU */
+
+    std::string preconditionerName_() const
+    {
+        if (!use_preconditioner_)
+        {
+            return "none";
+        }
+        if (preconditioner_family_ == PreconditionerFamily::Ifpack2)
+        {
+            return preconditioner_type_;
+        }
+#ifdef HAS_MUELU
+        if (preconditioner_family_ == PreconditionerFamily::MueLu)
+        {
+            return "MueLu";
+        }
+#endif /* HAS_MUELU */
+        return "unknown";
     }
 
     void copyLocalToTpetra_()
