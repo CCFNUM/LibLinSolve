@@ -161,11 +161,6 @@ public:
         return (is_subgraph_) ? subcomm_ : comm_;
     }
 
-    inline bool isGraphMember() const
-    {
-        return (getCommunicator() != MPI_COMM_NULL);
-    }
-
     KOKKOS_INLINE_FUNCTION bool isGraphMember() const
     {
         return (getCommunicator() != MPI_COMM_NULL);

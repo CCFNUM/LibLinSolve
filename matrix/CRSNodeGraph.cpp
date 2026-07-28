@@ -93,7 +93,6 @@ void CRSNodeGraph::buildGraph()
         {
             assert(diagonal_row_offset_h_(i) >= 0);
         }
-    }
 #endif /* NDEBUG */
     }
     else
@@ -156,7 +155,7 @@ CRSNodeGraph::rowLocalIndices(const Index i_row) const
 
     if (!isGraphMember())
     {
-        return std::span<const Index>();
+        return Kokkos::subview(primary_indices_, Kokkos::make_pair(0, 0));
     }
 
     if (this->isLocalColumnOrder())
@@ -185,7 +184,7 @@ CRSNodeGraph::rowGlobalIndices(const Index i_row) const
 
     if (!isGraphMember())
     {
-        return std::span<const Index>();
+        return Kokkos::subview(primary_indices_, Kokkos::make_pair(0, 0));
     }
 
     if (this->isGlobalColumnOrder())

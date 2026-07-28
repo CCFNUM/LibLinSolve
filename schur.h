@@ -36,7 +36,7 @@ void condense(coefficients<N>& coeffs,
     auto& b = coeffs.getBVector();
     SchurData& sd = coeffs.getSchurData();
     const MPI_Comm comm = coeffs.getCommunicator();
-    const CRSNodeGraph& graph = *coeffs.getGraph();
+    const CRSNodeGraph& graph = coeffs.getGraph();
 
     const Index numC = sd.M.size() / SchurData::NSq;
     if (numC == 0)

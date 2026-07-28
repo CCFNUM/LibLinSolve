@@ -197,8 +197,6 @@ public:
 #endif /* HAS_MUELU */
         }
 
-        copyCoefficients_();
-        copyStateToTpetra_();
         Context<N>::solvePrologue(solver_id, preconditioner);
     }
 
@@ -394,28 +392,16 @@ private:
     typename LocalSystem::crs_values_t rowcrs_values_;
 
     bool use_preconditioner_;
+    bool preconditioner_initialized_;
     std::string belos_solver_name_;
     std::string preconditioner_type_;
     PreconditionerFamily preconditioner_family_;
 
     void initialize_()
     {
-        configureFromYaml_(node);
         buildCommunicator_();
         buildMap_();
-        buildMatrix_();
-        buildVectors_();
-
-        if (use_preconditioner_)
-        {
-            if (preconditioner_type_ == "RELAXATION" &&
-                !preconditioner_params_.isParameter("relaxation: type"))
-            {
-                preconditioner_params_.set("relaxation: type", "Jacobi");
-            }
-            createPreconditioner_();
-        }
-
+        createSystem_();
         is_initialized_ = true;
     }
 

@@ -202,14 +202,14 @@ public:
 
         std::map<Index, std::map<Index, Block>> G;
         std::vector<std::map<Index, Block>> H;
-        Vector M;     // numC * NSq
-        Vector bc;    // numC * N
+        std::vector<DataType> M;  // numC * NSq
+        std::vector<DataType> bc; // numC * N
 
-        Vector Minv;
-        Vector MinvBc;
+        std::vector<DataType> Minv;
+        std::vector<DataType> MinvBc;
         std::vector<std::map<Index, Block>> MinvH;
         std::vector<char> cActive;
-        Vector lambda; // numC * N
+        std::vector<DataType> lambda; // numC * N
 
         // Block-level writers
         Block& GBlock(const Index row, const Index c)

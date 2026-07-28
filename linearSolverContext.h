@@ -129,7 +129,7 @@ public:
         return coeffs_->getGraph().getLayout();
     }
 
-    const CRSNodeGraph* getGraph() const
+    const CRSNodeGraph& getGraph() const
     {
         assert(coeffs_);
         return coeffs_->getGraph();
