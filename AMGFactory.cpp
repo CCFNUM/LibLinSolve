@@ -19,10 +19,7 @@ static void* libAMG__stub(const size_t,
     throw std::runtime_error("This liblinsolve build does not support libAMG");
     return nullptr;
 }
-
-linearSolver::AMGFactory getAMGSolverInstance = libAMG__stub;
-linearSolver::AMGFactory getGMRESSolverInstance = libAMG__stub;
-linearSolver::AMGFactory getDirectSolverInstance = libAMG__stub;
+#define SYMBOL(x) (libAMG__stub)
 #else
 #ifdef __cplusplus
 extern "C"
@@ -34,8 +31,8 @@ extern "C"
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
-#endif /* USE_AMG_STUBS */
 #define SYMBOL(x) (x)
+#endif /* USE_AMG_STUBS */
 #else
 #include <dlfcn.h>
 #include <stdexcept>
