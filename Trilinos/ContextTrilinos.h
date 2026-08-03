@@ -144,12 +144,11 @@ public:
                      system_name,
                      graph,
                      node),
-          is_initialized_(false), matrix_initialized_(false),
-          use_preconditioner_(false), preconditioner_initialized_(false),
-          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION"),
+          use_preconditioner_(false), belos_solver_name_("GMRES"),
+          preconditioner_type_("RELAXATION"),
           preconditioner_family_(PreconditionerFamily::None)
     {
-        configureFromYaml_(node);
+        setup_(node);
     }
 
     ContextTrilinos(const std::string& family,
@@ -161,12 +160,11 @@ public:
                      system_name,
                      coeffs,
                      node),
-          is_initialized_(false), matrix_initialized_(false),
-          use_preconditioner_(false), preconditioner_initialized_(false),
-          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION"),
+          use_preconditioner_(false), belos_solver_name_("GMRES"),
+          preconditioner_type_("RELAXATION"),
           preconditioner_family_(PreconditionerFamily::None)
     {
-        configureFromYaml_(node);
+        setup_(node);
     }
 
     ~ContextTrilinos()
@@ -176,9 +174,13 @@ public:
 
     void solvePrologue(const int solver_id, const bool preconditioner) override
     {
-        if (!is_initialized_)
+        // NOTE [faw 2026-06-24]: this assumes the connectivity of the matrix
+        // does not change (otherwise all of the system has to be rebuilt every
+        // non-linear iteration
+        copyLocalToTpetra_();
+
+        if (use_preconditioner_)
         {
-            this->initialize_();
             if (preconditioner_family_ == PreconditionerFamily::Ifpack2)
             {
                 Teuchos::RCP<typename Trilinos::PC> ifpack_prec =
@@ -209,7 +211,6 @@ public:
     std::string info(std::ostream& os,
                      const char* prefix = nullptr) const override
     {
-        assert(is_initialized_);
         const std::string pfx = Context<N>::info(os, prefix);
         os << pfx << '\t' << "Belos solver:     " << belos_solver_name_ << '\n';
         os << pfx << '\t' << "Preconditioner:   "
@@ -380,8 +381,6 @@ private:
 
     Teuchos::RCP<Teuchos::ParameterList> belos_params_;
     Teuchos::ParameterList preconditioner_params_;
-    bool is_initialized_;
-    bool matrix_initialized_;
 #ifdef HAS_MUELU
     Teuchos::ParameterList muelu_params_;
 #endif /* HAS_MUELU */
@@ -392,17 +391,16 @@ private:
     typename LocalSystem::crs_values_t rowcrs_values_;
 
     bool use_preconditioner_;
-    bool preconditioner_initialized_;
     std::string belos_solver_name_;
     std::string preconditioner_type_;
     PreconditionerFamily preconditioner_family_;
 
-    void initialize_()
+    void setup_(const YAML::Node* node)
     {
+        configureFromYaml_(node);
         buildCommunicator_();
         buildMap_();
         createSystem_();
-        is_initialized_ = true;
     }
 
     void configureFromYaml_(const YAML::Node* node)
