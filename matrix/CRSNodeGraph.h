@@ -163,7 +163,7 @@ public:
 
     KOKKOS_INLINE_FUNCTION bool isGraphMember() const
     {
-        return (getCommunicator() != MPI_COMM_NULL);
+        return is_graph_member_;
     }
 
     KOKKOS_INLINE_FUNCTION int commRank() const
@@ -429,6 +429,7 @@ protected:
     bool determine_n_ghosts_;
     bool is_built_;
     bool is_subgraph_;
+    bool is_graph_member_;
 
     // external-local-id -> row remap (empty = identity); set by subset graphs
     std::vector<int64_t> local_to_row_;

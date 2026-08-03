@@ -811,6 +811,8 @@ void CRSNodeGraph::setupSubgraph_()
         MPI_Comm_rank(comm_, &key); // preserve order of base comm_
         MPI_Comm_split(comm_, color, key, &subcomm_);
 
+        is_graph_member_ = getCommunicator() != MPI_COMM_NULL;
+
 #ifndef NDEBUG
         if (n_owned_nodes_ == 0)
         {
@@ -840,6 +842,7 @@ void CRSNodeGraph::subcommFree_()
 
 void CRSNodeGraph::resetGraph_()
 {
+    is_graph_member_ = true;
     subcommFree_();
     setup_();
     is_built_ = false;

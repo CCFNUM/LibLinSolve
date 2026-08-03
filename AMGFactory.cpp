@@ -25,9 +25,9 @@ static void* libAMG__stub(const size_t,
 extern "C"
 {
 #endif
-    extern linearSolver::_AMGFactory getAMGSolverInstance;
-    extern linearSolver::_AMGFactory getGMRESSolverInstance;
-    extern linearSolver::_AMGFactory getDirectSolverInstance;
+    extern linearSolver::AMGFactory getAMGSolverInstance;
+    extern linearSolver::AMGFactory getGMRESSolverInstance;
+    extern linearSolver::AMGFactory getDirectSolverInstance;
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
