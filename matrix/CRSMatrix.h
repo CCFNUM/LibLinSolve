@@ -25,6 +25,7 @@ public:
     using MemoryLayout = GraphLayout;
     using Index = CRSConnectivity::Index;
     using DataType = TRealSolver;
+    using IndexVector = IndexView;
     using Vector = ScalarView;
     using VectorHost = ScalarViewHost;
 

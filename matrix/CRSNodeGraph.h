@@ -166,6 +166,11 @@ public:
         return (getCommunicator() != MPI_COMM_NULL);
     }
 
+    KOKKOS_INLINE_FUNCTION bool isGraphMember() const
+    {
+        return (getCommunicator() != MPI_COMM_NULL);
+    }
+
     KOKKOS_INLINE_FUNCTION int commRank() const
     {
         return rank_;

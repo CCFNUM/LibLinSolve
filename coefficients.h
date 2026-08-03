@@ -33,7 +33,7 @@ public:
     using Vector = typename Matrix::Vector;
     using VectorHost = typename Matrix::VectorHost;
     using Index = typename Matrix::Index;
-    using IndexVector = std::vector<Index>;
+    using IndexVector = typename Matrix::IndexVector;
     using Matrix::BLOCKSIZE;
 
 private:

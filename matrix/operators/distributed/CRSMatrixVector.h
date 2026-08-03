@@ -35,10 +35,10 @@ void CRSMatrixVector(const CRSMatrix<N>& A,
     assert(static_cast<Index>(x.size()) ==
            BLOCKSIZE * A.getGraph().nAllNodes());
 
-    const CRSNodeGraph* graph = A.getGraph();
+    const CRSNodeGraph* graph = &A.getGraph();
     CRSNodeGraphSynchronizer<N, Real> sync(graph);
     sync.async(x);
-    std::fill(y.begin(), y.end(), static_cast<Real>(0));
+    Kokkos::deep_copy(y, static_cast<Real>(0));
 
 #if BLOCKING
     sync.waitAll(x);
