@@ -195,34 +195,53 @@ public:
     }
 
     // mesh local-id -> graph row; identity if no remap, -1 if not in subset
-    KOKKOS_INLINE_FUNCTION int64_t localToRow(const Index local_id) const
+    KOKKOS_INLINE_FUNCTION Index localToRow(const Index local_id) const
     {
-        if (local_to_row_.empty())
-            return static_cast<int64_t>(local_id);
-        return (static_cast<size_t>(local_id) < local_to_row_.size())
+        if (local_to_row_.extent(0) == 0)
+            return local_id;
+        return (local_id < local_to_row_.extent(0))
                    ? local_to_row_[local_id]
-                   : static_cast<int64_t>(-1);
+                   : -1;
+    }
+
+    inline Index localToRowHost(const Index local_id) const
+    {
+        if (local_to_row_h_.extent(0) == 0)
+            return local_id;
+        return (local_id < local_to_row_h_.extent(0))
+                   ? local_to_row_h_[local_id]
+                   : -1;
     }
 
     KOKKOS_INLINE_FUNCTION bool hasRowRemap() const
     {
-        return !local_to_row_.empty();
+        return !(local_to_row_.extent(0) == 0);
+    }
+
+    KOKKOS_INLINE_FUNCTION bool hasRowRemapHost() const
+    {
+        return !(local_to_row_h_.extent(0) == 0);
     }
 
     // mesh local-id -> contiguous global subset id (-1 if not in this graph)
-    KOKKOS_INLINE_FUNCTION int64_t localToGlobalRow(const Index local_id) const
+    KOKKOS_INLINE_FUNCTION Index localToGlobalRow(const Index local_id) const
     {
-        if (!local_to_global_.empty())
-            return (static_cast<size_t>(local_id) < local_to_global_.size())
+        if (!(local_to_global_.extent(0) == 0))
+            return (local_id < local_to_global_.extent(0))
                        ? local_to_global_[local_id]
-                       : static_cast<int64_t>(-1);
-        const int64_t r = localToRow(local_id);
-        return r < 0 ? -1 : r + static_cast<int64_t>(global_row_offset_);
+                       : 1;
+        const Index r = localToRow(local_id);
+        return r < 0 ? -1 : r + global_row_offset_;
     }
 
-    KOKKOS_INLINE_FUNCTION std::vector<int64_t>& localToRowMutable()
+    Index localToGlobalRowHost(const Index local_id) const
     {
-        return local_to_row_;
+        if (!(local_to_global_h_.extent(0) == 0))
+            return (local_id < local_to_global_h_.extent(0))
+                       ? local_to_global_h_[local_id]
+                       : 1;
+        const Index r = localToRowHost(local_id);
+        return r < 0 ? -1 : r + global_row_offset_;
     }
 
     KOKKOS_INLINE_FUNCTION Index nGlobalNodes() const
@@ -432,10 +451,12 @@ protected:
     bool is_graph_member_;
 
     // external-local-id -> row remap (empty = identity); set by subset graphs
-    std::vector<int64_t> local_to_row_;
+    IndexView local_to_row_;
+    IndexViewHost local_to_row_h_;
 
     // external-local-id -> global subset id (parallel subset graphs only)
-    std::vector<int64_t> local_to_global_;
+    IndexView local_to_global_;
+    IndexViewHost local_to_global_h_;
 
     // CRS data structures
     RowPtrView row_ptr_{"row_ptr", 0}; // row offsets

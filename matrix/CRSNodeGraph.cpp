@@ -320,11 +320,11 @@ void CRSNodeGraph::serialize(std::ofstream& out) const
     const char* p64 = reinterpret_cast<char*>(&v64);
 
     const auto row_ptr =
-        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), row_ptr_);
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, row_ptr_);
     const auto primary_indices = Kokkos::create_mirror_view_and_copy(
-        Kokkos::HostSpace(), primary_indices_);
+        Kokkos::HostSpace{}, primary_indices_);
     const auto secondary_indices = Kokkos::create_mirror_view_and_copy(
-        Kokkos::HostSpace(), secondary_indices_);
+        Kokkos::HostSpace{}, secondary_indices_);
 
     // header
     v64 = sizeof(Index); // size of index type

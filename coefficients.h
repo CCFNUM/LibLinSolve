@@ -298,9 +298,9 @@ public:
 
         // get an updated host mirror of data
         const auto lhs = Kokkos::create_mirror_view_and_copy(
-            Kokkos::HostSpace(), this->values_);
+            Kokkos::HostSpace{}, this->values_);
         const auto rhs =
-            Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), this->b_);
+            Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, this->b_);
 
         // header
         const char* p64 = reinterpret_cast<char*>(&v64);

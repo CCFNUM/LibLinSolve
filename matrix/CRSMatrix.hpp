@@ -206,7 +206,7 @@ void CRSMatrix<N>::writeMatrix_(const char* name) const
     // values are on device only, enforce host copy
     const auto values = this->valuesRef();
     const auto values_h =
-        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), values);
+        Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, values);
 
     for (Index i = 0; i < nRows(); i++)
     {
@@ -346,7 +346,7 @@ typename CRSMatrix<N>::DataType norm__frobenius(const CRSMatrix<N>* A)
     TReal norm = 0;
 
     // NOTE [faw 2026-06-26]: host only at the moment
-    const auto values = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+    const auto values = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{},
                                                             A->valuesRef());
     for (size_t i = 0; i < values.extent(0); ++i)
     {

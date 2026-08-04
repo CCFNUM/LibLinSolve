@@ -96,9 +96,11 @@ public:
             unsigned long long local_zeros[2] = {0};
             unsigned long long &is_zero = local_zeros[0];
             unsigned long long &almost_zero = local_zeros[1];
-            for (size_t i = 0; i<coeffs.valuesRef().size(); ++i) 
+            const ScalarView& values = coeffs.valuesRef();
+            const ScalarViewHost values_h = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, values);
+            for (size_t i = 0; i<values_h.size(); ++i) 
             {
-                typename Matrix::DataType c = coeffs.valuesRef()(i);
+                typename Matrix::DataType c = values_h(i);
                 c = std::abs(c);
                 if (c == zero) {
                     ++is_zero;
