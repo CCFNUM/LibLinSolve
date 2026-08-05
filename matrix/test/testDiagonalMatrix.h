@@ -160,7 +160,6 @@ private:
 
     void buildGraph_() override
     {
-        using IndexVector = std::vector<Index>;
         const Index n = this->getDimension();
 
         this->n_owned_nodes_ = n;

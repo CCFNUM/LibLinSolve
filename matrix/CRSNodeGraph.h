@@ -218,7 +218,7 @@ public:
     {
         if (local_to_row_.extent(0) == 0)
             return local_id;
-        return (local_id < local_to_row_.extent(0))
+        return (local_id < static_cast<Index>(local_to_row_.extent(0)))
                    ? local_to_row_[local_id]
                    : -1;
     }
@@ -227,7 +227,7 @@ public:
     {
         if (local_to_row_h_.extent(0) == 0)
             return local_id;
-        return (local_id < local_to_row_h_.extent(0))
+        return (local_id < static_cast<Index>(local_to_row_h_.extent(0)))
                    ? local_to_row_h_[local_id]
                    : -1;
     }
@@ -246,7 +246,7 @@ public:
     KOKKOS_INLINE_FUNCTION Index localToGlobalRow(const Index local_id) const
     {
         if (!(local_to_global_.extent(0) == 0))
-            return (local_id < local_to_global_.extent(0))
+            return (local_id < static_cast<Index>(local_to_global_.extent(0)))
                        ? local_to_global_[local_id]
                        : 1;
         const Index r = localToRow(local_id);
@@ -256,7 +256,7 @@ public:
     Index localToGlobalRowHost(const Index local_id) const
     {
         if (!(local_to_global_h_.extent(0) == 0))
-            return (local_id < local_to_global_h_.extent(0))
+            return (local_id < static_cast<Index>(local_to_global_h_.extent(0)))
                        ? local_to_global_h_[local_id]
                        : 1;
         const Index r = localToRowHost(local_id);

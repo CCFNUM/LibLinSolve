@@ -35,8 +35,8 @@ void CRSNodeGraph::buildGraph()
     if (isGraphMember())
     {
         assert(row_ptr_h_.size() > 1);
-        assert(static_cast<Index>(primary_indices_h_.size()) ==
-            row_ptr_h_(row_ptr_h_.extent(0) - 1));
+        assert(primary_indices_h_.size() ==
+               row_ptr_h_(row_ptr_h_.extent(0) - 1));
         n_owned_nodes_ = static_cast<Index>(row_ptr_h_.size()) - 1;
 
         computeAuxiliaryData_();
@@ -59,7 +59,9 @@ void CRSNodeGraph::buildGraph()
         {
             const Index row_sum_nnz = nnzOwned(i) + nnzGhost(i);
             sum_nnz += row_sum_nnz;
-            assert(row_sum_nnz == row_ptr_h_[i + 1] - row_ptr_h_[i]);
+            assert(row_ptr_h_[i + 1] > row_ptr_h_[i]);
+            assert(row_sum_nnz ==
+                   static_cast<Index>(row_ptr_h_[i + 1] - row_ptr_h_[i]));
         }
         assert(sum_nnz == this->nIndices());
         // b.)
