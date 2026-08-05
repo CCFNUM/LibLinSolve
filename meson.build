@@ -79,6 +79,7 @@ if get_option('WITH_TRILINOS')
 endif
 if get_option('WITH_KOKKOS')
   deps += dependency('Kokkos', method: 'cmake', modules: ['Kokkos::all_libs'], required: true)
+  deps += dependency('openmp', required: true)
   if get_option('CONFIG')
     conf.set('HAS_KOKKOS', true)
   else
