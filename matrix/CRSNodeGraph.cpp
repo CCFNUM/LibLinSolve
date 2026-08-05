@@ -693,6 +693,9 @@ void CRSNodeGraph::computeRowNonZeros_()
             }
         }
     }
+    // update device
+    Kokkos::deep_copy(row_nnz_owned_, row_nnz_owned_h_);
+    Kokkos::deep_copy(row_nnz_ghost_, row_nnz_ghost_h_);
 }
 
 void CRSNodeGraph::computeGlobalRowOffset_()
