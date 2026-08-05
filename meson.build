@@ -51,16 +51,18 @@ endif
 deps += dependency('dl', required: true)
 
 # optional dependencies
-if get_option('USE_PETSC')
-  deps += dependency('PETSc', required: true)
+petsc = dependency('PETSc', required: false)
+hypre = dependency('HYPRE', required: false)
+if petsc.found() and get_option('WITH_PETSC')
+  deps += petsc
   if get_option('CONFIG')
     conf.set('HAS_PETSC', true)
   else
     cpp_args += '-DHAS_PETSC'
   endif
 endif
-if get_option('USE_HYPRE')
-  deps += dependency('HYPRE', required: true)
+if hypre.found() and get_option('WITH_HYPRE')
+  deps += hypre
   if get_option('CONFIG')
     conf.set('HAS_HYPRE', true)
   else
