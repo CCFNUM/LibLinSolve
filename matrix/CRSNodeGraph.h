@@ -27,6 +27,7 @@ struct MPIDataType
 {
     static inline MPI_Datatype type()
     {
+        static_assert(false, "Undefined MPI type");
         return MPI_DATATYPE_NULL;
     }
 };
@@ -55,6 +56,24 @@ struct MPIDataType<unsigned int>
     static inline MPI_Datatype type()
     {
         return MPI_UNSIGNED;
+    }
+};
+
+template <>
+struct MPIDataType<unsigned long>
+{
+    static inline MPI_Datatype type()
+    {
+        return MPI_UNSIGNED_LONG;
+    }
+};
+
+template <>
+struct MPIDataType<unsigned long long>
+{
+    static inline MPI_Datatype type()
+    {
+        return MPI_UNSIGNED_LONG_LONG;
     }
 };
 
