@@ -860,6 +860,8 @@ void CRSNodeGraph::resetGraph_()
     row_ptr_ = RowPtrView{"row_ptr", 0};
     primary_indices_ = IndexView{"primary_indices", 0};
     secondary_indices_ = IndexView{"secondary_indices", 0};
+    local_to_row_ = IndexView{};
+    local_to_global_ = IndexView{};
 
     row_nnz_owned_ = IndexView{"row_nnz_owned", 0};
     row_nnz_ghost_ = IndexView{"row_nnz_ghost", 0};
@@ -873,6 +875,9 @@ void CRSNodeGraph::resetGraph_()
     row_nnz_owned_h_ = Kokkos::create_mirror_view(row_nnz_owned_);
     row_nnz_ghost_h_ = Kokkos::create_mirror_view(row_nnz_ghost_);
     diagonal_row_offset_h_ = Kokkos::create_mirror_view(diagonal_row_offset_);
+
+    local_to_row_h_ = Kokkos::create_mirror_view(local_to_row_);
+    local_to_global_h_ = Kokkos::create_mirror_view(local_to_global_);
 
     pack_infos_.clear();
 }
