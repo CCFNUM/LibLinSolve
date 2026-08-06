@@ -446,6 +446,9 @@ public:
     KOKKOS_FUNCTION IndexSubview rowLocalIndices(const Index i_row) const;
     KOKKOS_FUNCTION IndexSubview rowGlobalIndices(const Index i_row) const;
 
+    KOKKOS_FUNCTION bool operator==(const CRSNodeGraph& rhs) const;
+    KOKKOS_FUNCTION bool operator!=(const CRSNodeGraph& rhs) const;
+
     const IndexViewHost& localIndicesHost() const;
     const IndexViewHost& globalIndicesHost() const;
 

@@ -206,6 +206,52 @@ CRSNodeGraph::rowGlobalIndices(const Index i_row) const
     }
 }
 
+#define CHECK_ALLOC(sfx)                                                       \
+    is_same_alloc =                                                            \
+        is_same_alloc && (this->row_ptr##sfx == rhs.row_ptr##sfx) &&           \
+        (this->primary_indices##sfx == rhs.primary_indices##sfx) &&            \
+        (this->secondary_indices##sfx == rhs.secondary_indices##sfx) &&        \
+        (this->row_nnz_owned##sfx == rhs.row_nnz_owned##sfx) &&                \
+        (this->row_nnz_ghost##sfx == rhs.row_nnz_ghost##sfx) &&                \
+        (this->local_to_row##sfx == rhs.local_to_row##sfx) &&                  \
+        (this->local_to_global##sfx == rhs.local_to_global##sfx) &&            \
+        (this->diagonal_row_offset##sfx == rhs.diagonal_row_offset##sfx);
+
+KOKKOS_FUNCTION bool CRSNodeGraph::operator==(const CRSNodeGraph& rhs) const
+{
+    bool is_same_meta = true;
+    bool is_same_alloc = true;
+
+    // meta data
+    is_same_meta = is_same_meta && (this->layout_ == rhs.layout_) &&
+                   (this->n_owned_nodes_ == rhs.n_owned_nodes_) &&
+                   (this->n_ghost_nodes_ == rhs.n_ghost_nodes_) &&
+                   (this->determine_n_ghosts_ == rhs.determine_n_ghosts_) &&
+                   (this->is_built_ == rhs.is_built_) &&
+                   (this->is_subgraph_ == rhs.is_subgraph_) &&
+                   (this->is_graph_member_ == rhs.is_graph_member_);
+
+    // meta MPI (strict check for now, may need to be relaxed later)
+    is_same_meta = is_same_meta && (this->rank_ == rhs.rank_) &&
+                   (this->size_ == rhs.size_) &&
+                   (this->global_row_offset_ == rhs.global_row_offset_) &&
+                   (this->global_number_nodes_ == rhs.global_number_nodes_) &&
+                   (this->global_number_indices_ == rhs.global_number_indices_);
+
+    // allocations
+    KOKKOS_IF_ON_DEVICE(CHECK_ALLOC(_))
+    KOKKOS_IF_ON_HOST(CHECK_ALLOC(_h_))
+
+    return is_same_meta && is_same_alloc;
+}
+
+#undef CHECK_ALLOC
+
+KOKKOS_FUNCTION bool CRSNodeGraph::operator!=(const CRSNodeGraph& rhs) const
+{
+    return !(this->operator==(rhs));
+}
+
 // host functions
 const CRSNodeGraph::IndexViewHost& CRSNodeGraph::localIndicesHost() const
 {
