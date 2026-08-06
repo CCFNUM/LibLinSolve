@@ -473,11 +473,11 @@ protected:
     bool is_graph_member_;
 
     // external-local-id -> row remap (empty = identity); set by subset graphs
-    IndexView local_to_row_;
+    IndexView local_to_row_{"local_to_row", 0};
     IndexViewHost local_to_row_h_;
 
     // external-local-id -> global subset id (parallel subset graphs only)
-    IndexView local_to_global_;
+    IndexView local_to_global_{"local_to_global", 0};
     IndexViewHost local_to_global_h_;
 
     // CRS data structures
