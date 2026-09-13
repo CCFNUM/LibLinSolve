@@ -11,6 +11,39 @@
 #include <numeric>
 #include <unordered_set>
 
+namespace
+{
+// FNV-1a 64-bit hash parameters
+constexpr std::uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
+constexpr std::uint64_t FNV_PRIME = 1099511628211ULL;
+
+void fnvMix(std::uint64_t& h, const void* data, const size_t nbytes)
+{
+    const auto* bytes = static_cast<const unsigned char*>(data);
+    for (size_t i = 0; i < nbytes; ++i)
+    {
+        h = (h ^ bytes[i]) * FNV_PRIME;
+    }
+}
+
+template <typename T>
+void fnvMix(std::uint64_t& h, const T& value)
+{
+    fnvMix(h, &value, sizeof(T));
+}
+
+template <typename T>
+void fnvMix(std::uint64_t& h, const std::vector<T>& data)
+{
+    const size_t n = data.size();
+    fnvMix(h, n); // size prefix prevents concatenation ambiguity
+    if (0 < n)
+    {
+        fnvMix(h, data.data(), n * sizeof(T));
+    }
+}
+} // namespace
+
 namespace linearSolver
 {
 
@@ -111,6 +144,32 @@ void CRSNodeGraph::buildGraph()
         }
 #endif /* NDEBUG */
     }
+
+    // graph fingerprint (graph members and non-members compute this)
+    hash_ = computeHash_();
+}
+
+CRSNodeGraph::Hash CRSNodeGraph::computeHash_() const
+{
+    // FNV-1a over all members that define the linear-system structure.
+    // Excluded:
+    //  * pack_infos_ (halo exchange bookkeeping),
+    //  * diagonal_row_offset_ (derived from hashed arrays)
+    //  * communicator handles/layout (non-structural)
+    std::uint64_t h = FNV_OFFSET_BASIS;
+    fnvMix(h, n_owned_nodes_);
+    fnvMix(h, n_ghost_nodes_);
+    fnvMix(h, global_row_offset_);
+    fnvMix(h, global_number_nodes_);
+    fnvMix(h, global_number_indices_);
+    fnvMix(h, local_to_row_);
+    fnvMix(h, local_to_global_);
+    fnvMix(h, row_ptr_);
+    fnvMix(h, primary_indices_);
+    fnvMix(h, secondary_indices_);
+    fnvMix(h, row_nnz_owned_);
+    fnvMix(h, row_nnz_ghost_);
+    return h;
 }
 
 std::span<const CRSNodeGraph::Index> CRSNodeGraph::localIndices() const
@@ -727,6 +786,7 @@ void CRSNodeGraph::resetGraph_()
     subcommFree_();
     setup_();
     is_built_ = false;
+    hash_ = 0;
     n_owned_nodes_ = 0;
     n_ghost_nodes_ = ~0;
 

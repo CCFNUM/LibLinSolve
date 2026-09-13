@@ -142,6 +142,8 @@ public:
     // should be a signed integral.
     using Index = TGraphIndex;
 
+    using Hash = std::uint64_t;
+
     struct PackInfo
     {
         int remote_rank;
@@ -309,6 +311,12 @@ public:
         return is_built_;
     }
 
+    inline Hash hash() const
+    {
+        assert(is_built_);
+        return hash_;
+    }
+
     inline Index nnzOwned(const Index i_row) const
     {
         assert(is_built_);
@@ -384,6 +392,8 @@ protected:
     bool determine_n_ghosts_;
     bool is_built_;
     bool is_subgraph_;
+
+    Hash hash_ = 0; // 0 == not built / invalid
 
     // external-local-id -> row remap (empty = identity); set by subset graphs
     std::vector<int64_t> local_to_row_;
@@ -463,6 +473,8 @@ protected:
 
 private:
     GraphLayout layout_;
+
+    Hash computeHash_() const;
 
     Index filterGhostsForOwnerRank_(
         int& owner_rank,
