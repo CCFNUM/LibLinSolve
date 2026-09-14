@@ -17,7 +17,8 @@ Context<N>::Context(const int solver_id,
                     const std::string& system_name,
                     const CRSNodeGraph* graph,
                     const YAML::Node* node)
-    : solver_id_(solver_id), coeffs_(std::make_shared<Coefficients>(graph)),
+    : is_initialized_(false), solver_id_(solver_id),
+      coeffs_(std::make_shared<Coefficients>(graph)),
       profiler_(this->getCommunicator(), "Context [" + family + "]"),
       family_(family), system_name_(system_name), call_count_(0),
       call_count_relative_(0), ctx_precond_(nullptr), cout_(&::std::cout),
@@ -39,7 +40,7 @@ Context<N>::Context(const int solver_id,
                     const std::string& system_name,
                     std::shared_ptr<Coefficients> coeffs,
                     const YAML::Node* node)
-    : solver_id_(solver_id), coeffs_(coeffs),
+    : is_initialized_(false), solver_id_(solver_id), coeffs_(coeffs),
       profiler_(this->getCommunicator(), "Context [" + family + "]"),
       family_(family), system_name_(system_name), call_count_(0),
       call_count_relative_(0), ctx_precond_(nullptr), cout_(&::std::cout),
@@ -58,7 +59,7 @@ Context<N>::Context(const int solver_id,
 // protected constructor
 template <size_t N>
 Context<N>::Context(const std::string& family, const std::string& system_name)
-    : solver_id_(linearSolver::ID::UNDEFINED),
+    : is_initialized_(false), solver_id_(linearSolver::ID::UNDEFINED),
       profiler_(MPI_COMM_NULL, "Context [" + family + "]"), family_(family),
       system_name_(system_name), ctx_precond_(nullptr), cout_(&::std::cout),
       active_stream_(nullptr), call_count_(0), call_count_relative_(0)
@@ -148,9 +149,9 @@ int Context<N>::setOptions_(const YAML::Node* solver_yaml)
 }
 
 template <size_t N>
-bool Context<N>::graphStateChanged_()
+bool Context<N>::graphStateChanged_() const
 {
-    assert(is_initalized_);
+    assert(is_initialized_);
     const CRSNodeGraph* graph = this->getGraph();
     const int changed = graph->hash() != graph_hash_;
     int any = 0;

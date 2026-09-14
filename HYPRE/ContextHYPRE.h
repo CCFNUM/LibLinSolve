@@ -72,7 +72,7 @@ public:
                  const CRSNodeGraph* graph,
                  const YAML::Node* node = nullptr)
         : Context<N>(linearSolver::ID::HYPRE, family, system_name, graph, node),
-          options_node_(node), is_initalized_(false)
+          options_node_(node)
     {
     }
 
@@ -86,22 +86,29 @@ public:
                      system_name,
                      coeffs,
                      node),
-          options_node_(node), is_initalized_(false)
+          options_node_(node)
     {
     }
 
     ~ContextHYPRE()
     {
-        HYPRE_IJMatrixDestroy(A_hypre_);
-        HYPRE_IJVectorDestroy(b_hypre_);
-        HYPRE_IJVectorDestroy(x_hypre_);
+        destroySystem_();
     }
 
     void solvePrologue(const int solver_id, const bool preconditioner) override
     {
-        if (!is_initalized_)
+        // (re-)initialize the system if the node graph changed dynamically
+        if (!this->is_initialized_ || this->graphStateChanged_())
         {
+            const bool reinit = this->is_initialized_;
+            this->destroySystem_();
             this->initialize_();
+            if (reinit && 0 < this->verbose())
+            {
+                this->cout() << "HYPRE [" << this->getSystemName()
+                             << "]: node graph changed; re-initialized "
+                                "matrix/vectors\n";
+            }
         }
 
         setupSolver_(options_node_);
@@ -119,7 +126,7 @@ public:
     std::string info(std::ostream& os,
                      const char* prefix = nullptr) const override
     {
-        assert(is_initalized_);
+        assert(this->is_initialized_);
         const std::string pfx = Context<N>::info(os, prefix);
         for (const auto& option : options_)
         {
@@ -152,9 +159,9 @@ private:
     const YAML::Node* options_node_;
     std::map<std::string, std::string> options_;
 
-    HYPRE_IJMatrix A_hypre_;
-    HYPRE_IJVector b_hypre_;
-    HYPRE_IJVector x_hypre_;
+    HYPRE_IJMatrix A_hypre_ = nullptr;
+    HYPRE_IJVector b_hypre_ = nullptr;
+    HYPRE_IJVector x_hypre_ = nullptr;
     HYPRE_Solver solver_hypre_;
     HYPRE_Solver preconditioner_hypre_;
     HYPRE_Solver mgr_coarse_hypre_;
@@ -187,8 +194,6 @@ private:
     Index j_lower_;
     Index j_upper_;
     Index n_unknowns;
-
-    bool is_initalized_;
 
     void initialize_();
 
@@ -225,6 +230,25 @@ private:
         HYPRE_CALLBACK(cb_preconditioner_destroy_, preconditioner_hypre_);
         HYPRE_CALLBACK(cb_solver_destroy_, solver_hypre_);
         resetCallbacks_();
+    }
+
+    void destroySystem_()
+    {
+        if (A_hypre_)
+        {
+            HYPRE_IJMatrixDestroy(A_hypre_);
+            A_hypre_ = nullptr;
+        }
+        if (b_hypre_)
+        {
+            HYPRE_IJVectorDestroy(b_hypre_);
+            b_hypre_ = nullptr;
+        }
+        if (x_hypre_)
+        {
+            HYPRE_IJVectorDestroy(x_hypre_);
+            x_hypre_ = nullptr;
+        }
     }
 
     // clang-format off
@@ -278,7 +302,10 @@ void ContextHYPRE<N>::initialize_()
     setOptions_(options_node_);
     destroySolver_();
 
-    is_initalized_ = true;
+    // snapshot the graph this system was built for
+    this->graph_hash_ = this->getGraph()->hash();
+
+    this->is_initialized_ = true;
 }
 
 template <size_t N>

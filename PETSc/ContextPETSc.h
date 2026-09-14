@@ -44,7 +44,7 @@ public:
                  const YAML::Node* node = nullptr)
         : Context<N>(linearSolver::ID::PETSc, family, system_name, graph, node),
           ksp_petsc_(nullptr), A_petsc_(nullptr), x_petsc_(nullptr),
-          b_petsc_(nullptr), is_initalized_(false)
+          b_petsc_(nullptr)
     {
         setOptions_(node);
     }
@@ -60,7 +60,7 @@ public:
                      coeffs,
                      node),
           ksp_petsc_(nullptr), A_petsc_(nullptr), x_petsc_(nullptr),
-          b_petsc_(nullptr), is_initalized_(false)
+          b_petsc_(nullptr)
     {
         setOptions_(node);
     }
@@ -96,9 +96,19 @@ public:
 
     void solvePrologue(const int solver_id, const bool preconditioner) override
     {
-        if (!is_initalized_)
+        // (re-)initialize the system if the node graph changed dynamically
+        if (!this->is_initialized_ || this->graphStateChanged_())
         {
+            const bool reinit = this->is_initialized_;
+            this->destroySystem_(); // dtor order; PETSc ref-counting makes
+            this->destroySolver_(); // either destroy order safe
             this->initialize_();
+            if (reinit && 0 < this->verbose())
+            {
+                this->cout() << "PETSc [" << this->getSystemName()
+                             << "]: node graph changed; re-initialized "
+                                "matrix/vectors/ksp\n";
+            }
         }
 
         // default assumes matrix elements change for every iteration: matrix
@@ -113,7 +123,7 @@ public:
     std::string info(std::ostream& os,
                      const char* prefix = nullptr) const override
     {
-        assert(is_initalized_);
+        assert(this->is_initialized_);
         const std::string pfx = Context<N>::info(os, prefix);
 
         PC pc;
@@ -162,7 +172,6 @@ private:
     Mat A_petsc_;
     Vec x_petsc_;
     Vec b_petsc_;
-    bool is_initalized_;
 
     void initialize_();
     int setOptions_(const YAML::Node* solver_yaml) override;
@@ -214,7 +223,11 @@ void ContextPETSc<N>::initialize_()
 {
     this->initializeSystem();
     createKSP_();
-    is_initalized_ = true;
+
+    // snapshot the graph this system was built for
+    this->graph_hash_ = this->getGraph()->hash();
+
+    this->is_initialized_ = true;
 
 #if 0
     PetscViewer viewer;

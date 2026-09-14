@@ -127,9 +127,9 @@ public:
                      system_name,
                      graph,
                      node),
-          is_initialized_(false), matrix_initialized_(false),
-          use_preconditioner_(false), preconditioner_initialized_(false),
-          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION")
+          matrix_initialized_(false), use_preconditioner_(false),
+          preconditioner_initialized_(false), belos_solver_name_("GMRES"),
+          preconditioner_type_("RELAXATION")
     {
         configureFromYaml_(node);
     }
@@ -143,9 +143,9 @@ public:
                      system_name,
                      coeffs,
                      node),
-          is_initialized_(false), matrix_initialized_(false),
-          use_preconditioner_(false), preconditioner_initialized_(false),
-          belos_solver_name_("GMRES"), preconditioner_type_("RELAXATION")
+          matrix_initialized_(false), use_preconditioner_(false),
+          preconditioner_initialized_(false), belos_solver_name_("GMRES"),
+          preconditioner_type_("RELAXATION")
     {
         configureFromYaml_(node);
     }
@@ -157,9 +157,18 @@ public:
 
     void solvePrologue(const int solver_id, const bool preconditioner) override
     {
-        if (!is_initialized_)
+        // (re-)initialize the system if the node graph changed dynamically
+        if (!this->is_initialized_ || this->graphStateChanged_())
         {
+            const bool reinit = this->is_initialized_;
+            this->destroySystem_();
             this->initialize_();
+            if (reinit && 0 < this->verbose())
+            {
+                this->cout() << "Trilinos [" << this->getSystemName()
+                             << "]: node graph changed; re-initialized "
+                                "matrix/vectors\n";
+            }
         }
 
         copyCoefficients_();
@@ -170,7 +179,7 @@ public:
     std::string info(std::ostream& os,
                      const char* prefix = nullptr) const override
     {
-        assert(is_initialized_);
+        assert(this->is_initialized_);
         const std::string pfx = Context<N>::info(os, prefix);
         os << pfx << '\t' << "Belos solver:     " << belos_solver_name_ << '\n';
         os << pfx << '\t' << "Preconditioner:   "
@@ -237,7 +246,6 @@ private:
         belos_solver_;
     Teuchos::RCP<Teuchos::ParameterList> belos_params_;
     Teuchos::ParameterList preconditioner_params_;
-    bool is_initialized_;
     bool matrix_initialized_;
     bool use_preconditioner_;
     bool preconditioner_initialized_;
@@ -261,7 +269,10 @@ private:
             createPreconditioner_();
         }
 
-        is_initialized_ = true;
+        // snapshot the graph this system was built for
+        this->graph_hash_ = this->getGraph()->hash();
+
+        this->is_initialized_ = true;
     }
 
     void configureFromYaml_(const YAML::Node* node)

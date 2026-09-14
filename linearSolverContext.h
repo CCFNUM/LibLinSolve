@@ -443,6 +443,7 @@ public:
 protected:
     Context(const std::string& family, const std::string& system_name);
 
+    bool is_initialized_;
     int solver_id_;
     int verbose_;
     int min_iterations_;
