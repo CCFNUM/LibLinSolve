@@ -450,10 +450,13 @@ protected:
     double rtol_;
     double atol_;
 
+    CRSNodeGraph::Hash graph_hash_{0}; // node graph state
+
     std::shared_ptr<Coefficients> coeffs_; // system coefficients
     Profiler profiler_;
 
     virtual int setOptions_(const YAML::Node* solver_yaml);
+    bool graphStateChanged_() const;
 
     // allowed cast operators
     virtual ContextAMGSolver<N>* castContextAMG_()

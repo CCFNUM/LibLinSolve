@@ -148,6 +148,17 @@ int Context<N>::setOptions_(const YAML::Node* solver_yaml)
 }
 
 template <size_t N>
+bool Context<N>::graphStateChanged_()
+{
+    assert(is_initalized_);
+    const CRSNodeGraph* graph = this->getGraph();
+    const int changed = graph->hash() != graph_hash_;
+    int any = 0;
+    MPI_Allreduce(&changed, &any, 1, MPI_INT, MPI_LOR, this->getCommunicator());
+    return (0 != any);
+}
+
+template <size_t N>
 void Context<N>::setupDefaults_()
 {
     verbose_ = 0;
