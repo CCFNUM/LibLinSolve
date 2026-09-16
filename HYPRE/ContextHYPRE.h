@@ -577,7 +577,7 @@ void ContextHYPRE<N>::setGMRES_(const MPI_Comm comm,
             std::string key = opt->first.template as<std::string>();
             Context<N>::tolower(key); // set lower-case
             // use HYPRE default if not set
-            if (key == "printlevel")
+            if (key == "print_level")
             {
                 HYPRE_GMRESSetPrintLevel(object,
                                          opt->second.template as<int>());
@@ -586,7 +586,7 @@ void ContextHYPRE<N>::setGMRES_(const MPI_Comm comm,
             {
                 HYPRE_GMRESSetLogging(object, opt->second.template as<int>());
             }
-            else if (key == "kdim")
+            else if (key == "k_dim")
             { // Krylov dimension for restarted GMRES
                 HYPRE_GMRESSetKDim(object, opt->second.template as<int>());
             }
@@ -609,7 +609,7 @@ void ContextHYPRE<N>::setFlexGMRES_(const MPI_Comm comm,
             std::string key = opt->first.template as<std::string>();
             Context<N>::tolower(key); // set lower-case
             // use HYPRE default if not set
-            if (key == "printlevel")
+            if (key == "print_level")
             {
                 HYPRE_FlexGMRESSetPrintLevel(object,
                                              opt->second.template as<int>());
@@ -619,7 +619,7 @@ void ContextHYPRE<N>::setFlexGMRES_(const MPI_Comm comm,
                 HYPRE_FlexGMRESSetLogging(object,
                                           opt->second.template as<int>());
             }
-            else if (key == "kdim")
+            else if (key == "k_dim")
             { // Krylov dimension for restarted GMRES
                 HYPRE_FlexGMRESSetKDim(object, opt->second.template as<int>());
             }
@@ -641,7 +641,7 @@ void ContextHYPRE<N>::setBoomerAMG_(HYPRE_Solver& object,
             std::string key = opt->first.template as<std::string>();
             Context<N>::tolower(key); // set lower-case
             // use HYPRE default if not set
-            if (key == "printlevel")
+            if (key == "print_level")
             {
                 HYPRE_BoomerAMGSetPrintLevel(object,
                                              opt->second.template as<int>());
@@ -651,47 +651,47 @@ void ContextHYPRE<N>::setBoomerAMG_(HYPRE_Solver& object,
                 HYPRE_BoomerAMGSetLogging(object,
                                           opt->second.template as<int>());
             }
-            else if (key == "relaxtype")
+            else if (key == "relax_type")
             {
                 HYPRE_BoomerAMGSetRelaxType(object,
                                             opt->second.template as<int>());
             }
-            else if (key == "relaxorder")
+            else if (key == "relax_order")
             {
                 HYPRE_BoomerAMGSetRelaxOrder(object,
                                              opt->second.template as<int>());
             }
-            else if (key == "numsweeps")
+            else if (key == "num_sweeps")
             {
                 HYPRE_BoomerAMGSetNumSweeps(object,
                                             opt->second.template as<int>());
             }
-            else if (key == "maxiter")
+            else if (key == "max_iter")
             {
                 HYPRE_BoomerAMGSetMaxIter(object,
                                           opt->second.template as<int>());
             }
-            else if (key == "maxlevels")
+            else if (key == "max_levels")
             {
                 HYPRE_BoomerAMGSetMaxLevels(object,
                                             opt->second.template as<int>());
             }
-            else if (key == "interptype")
+            else if (key == "interp_type")
             {
                 HYPRE_BoomerAMGSetInterpType(object,
                                              opt->second.template as<int>());
             }
-            else if (key == "aggnumlevels")
+            else if (key == "agg_num_levels")
             {
                 HYPRE_BoomerAMGSetAggNumLevels(object,
                                                opt->second.template as<int>());
             }
-            else if (key == "numpaths")
+            else if (key == "num_paths")
             {
                 HYPRE_BoomerAMGSetNumPaths(object,
                                            opt->second.template as<int>());
             }
-            else if (key == "agginterptype")
+            else if (key == "agg_interp_type")
             {
                 HYPRE_BoomerAMGSetAggInterpType(object,
                                                 opt->second.template as<int>());
@@ -700,43 +700,43 @@ void ContextHYPRE<N>::setBoomerAMG_(HYPRE_Solver& object,
             {
                 HYPRE_BoomerAMGSetNodal(object, opt->second.template as<int>());
             }
-            else if (key == "nodaldiag")
+            else if (key == "nodal_diag")
             {
                 HYPRE_BoomerAMGSetNodalDiag(object,
                                             opt->second.template as<int>());
             }
-            else if (key == "numfunctions")
+            else if (key == "num_functions")
             {
                 HYPRE_BoomerAMGSetNumFunctions(object,
                                                opt->second.template as<int>());
             }
-            else if (key == "coarsentype")
+            else if (key == "coarsen_type")
             {
                 HYPRE_BoomerAMGSetCoarsenType(object,
                                               opt->second.template as<int>());
             }
-            else if (key == "maxcoarsesize")
+            else if (key == "max_coarse_size")
             {
                 HYPRE_BoomerAMGSetMaxCoarseSize(object,
                                                 opt->second.template as<int>());
             }
-            else if (key == "coarsencutfactor")
+            else if (key == "coarsen_cut_factor")
             {
                 HYPRE_BoomerAMGSetCoarsenCutFactor(
                     object, opt->second.template as<int>());
             }
-            else if (key == "strongthreshold")
+            else if (key == "strong_threshold")
             {
                 HYPRE_BoomerAMGSetStrongThreshold(
                     object,
                     opt->second.template as<typename Matrix::DataType>());
             }
-            else if (key == "cycletype")
+            else if (key == "cycle_type")
             {
                 HYPRE_BoomerAMGSetCycleType(object,
                                             opt->second.template as<int>());
             }
-            else if (key == "fcycle")
+            else if (key == "f_cycle")
             {
                 HYPRE_BoomerAMGSetFCycle(object,
                                          opt->second.template as<int>());
@@ -747,25 +747,25 @@ void ContextHYPRE<N>::setBoomerAMG_(HYPRE_Solver& object,
                     object,
                     opt->second.template as<typename Matrix::DataType>());
             }
-            else if (key == "truncfactor")
+            else if (key == "trunc_factor")
             {
                 HYPRE_BoomerAMGSetTruncFactor(
                     object,
                     opt->second.template as<typename Matrix::DataType>());
             }
-            else if (key == "aggtruncfactor")
+            else if (key == "agg_trunc_factor")
             {
                 HYPRE_BoomerAMGSetAggTruncFactor(
                     object,
                     opt->second.template as<typename Matrix::DataType>());
             }
-            else if (key == "jacobitruncthreshold")
+            else if (key == "jacobi_trunc_threshold")
             {
                 HYPRE_BoomerAMGSetJacobiTruncThreshold(
                     object,
                     opt->second.template as<typename Matrix::DataType>());
             }
-            else if (key == "maxrowsum")
+            else if (key == "max_row_sum")
             {
                 HYPRE_BoomerAMGSetMaxRowSum(
                     object,
@@ -788,24 +788,24 @@ void ContextHYPRE<N>::setMGR_(HYPRE_Solver& object, const YAML::Node* options)
         {
             std::string key = opt->first.template as<std::string>();
             Context<N>::tolower(key); // set lower-case
-            if (key == "cpointsbyblock")
+            if (key == "c_points_by_block")
             {
                 const YAML::Node cpoints_bb = opt->second;
                 if (!cpoints_bb["n_levels"])
                 {
                     throw std::runtime_error(
                         "ContextHYPRE: `n_levels` is required "
-                        "when `CpointsByBlock` is defined");
+                        "when `c_points_by_block` is defined");
                 }
-                if (!cpoints_bb["blocksize"])
+                if (!cpoints_bb["block_size"])
                 {
                     throw std::runtime_error(
-                        "ContextHYPRE: `blocksize` is required "
-                        "when `CpointsByBlock` is defined");
+                        "ContextHYPRE: `block_size` is required "
+                        "when `c_points_by_block` is defined");
                 }
                 const int n_levels = cpoints_bb["n_levels"].template as<int>();
                 const int blocksize =
-                    cpoints_bb["blocksize"].template as<int>();
+                    cpoints_bb["block_size"].template as<int>();
                 assert(blocksize == BLOCKSIZE);
 
                 std::vector<int> cpoints(n_levels);
@@ -820,7 +820,8 @@ void ContextHYPRE<N>::setMGR_(HYPRE_Solver& object, const YAML::Node* options)
                     {
                         throw std::runtime_error(
                             "ContextHYPRE: `" + level_id +
-                            "` is required when `CpointsByBlock` is defined");
+                            "` is required when `c_points_by_block` is "
+                            "defined");
                     }
                     const std::vector<int> cpoints_level =
                         cpoints_bb[level_id].template as<std::vector<int>>();
@@ -841,16 +842,16 @@ void ContextHYPRE<N>::setMGR_(HYPRE_Solver& object, const YAML::Node* options)
             std::string key = opt->first.template as<std::string>();
             Context<N>::tolower(key); // set lower-case
             // use HYPRE default if not set
-            if (key == "printlevel")
+            if (key == "print_level")
             {
                 HYPRE_MGRSetPrintLevel(object, opt->second.template as<int>());
             }
-            else if (key == "frelaxprintlevel")
+            else if (key == "f_relax_print_level")
             {
                 HYPRE_MGRSetFrelaxPrintLevel(object,
                                              opt->second.template as<int>());
             }
-            else if (key == "coarsegridprintlevel")
+            else if (key == "coarse_grid_print_level")
             {
                 HYPRE_MGRSetCoarseGridPrintLevel(
                     object, opt->second.template as<int>());
@@ -859,124 +860,124 @@ void ContextHYPRE<N>::setMGR_(HYPRE_Solver& object, const YAML::Node* options)
             {
                 HYPRE_MGRSetLogging(object, opt->second.template as<int>());
             }
-            else if (key == "noncpointstofpoints")
+            else if (key == "non_c_points_to_f_points")
             {
                 HYPRE_MGRSetNonCpointsToFpoints(object,
                                                 opt->second.template as<int>());
             }
-            else if (key == "truncatecoarsegridthreshold")
+            else if (key == "truncate_coarse_grid_threshold")
             {
                 HYPRE_MGRSetTruncateCoarseGridThreshold(
                     object,
                     opt->second.template as<typename Matrix::DataType>());
             }
-            else if (key == "maxcoarselevels")
+            else if (key == "max_coarse_levels")
             {
                 HYPRE_MGRSetMaxCoarseLevels(object,
                                             opt->second.template as<int>());
             }
-            else if (key == "coarsegridmethod")
+            else if (key == "coarse_grid_method")
             {
                 HYPRE_MGRSetCoarseGridMethod(
                     object, opt->second.template as<std::vector<int>>().data());
             }
-            else if (key == "relaxtype")
+            else if (key == "relax_type")
             {
                 HYPRE_MGRSetRelaxType(object, opt->second.template as<int>());
             }
-            else if (key == "blocksize")
+            else if (key == "block_size")
             {
                 HYPRE_MGRSetBlockSize(object, opt->second.template as<int>());
             }
-            else if (key == "levelfrelaxmethod")
+            else if (key == "level_f_relax_method")
             {
                 HYPRE_MGRSetLevelFRelaxMethod(
                     object, opt->second.template as<std::vector<int>>().data());
             }
-            else if (key == "levelfrelaxtype")
+            else if (key == "level_f_relax_type")
             {
                 HYPRE_MGRSetLevelFRelaxType(
                     object, opt->second.template as<std::vector<int>>().data());
             }
-            else if (key == "levelfrelaxnumfunctions")
+            else if (key == "level_f_relax_num_functions")
             {
                 HYPRE_MGRSetLevelFRelaxNumFunctions(
                     object, opt->second.template as<std::vector<int>>().data());
             }
-            else if (key == "numrestrictsweeps")
+            else if (key == "num_restrict_sweeps")
             {
                 HYPRE_MGRSetNumRestrictSweeps(object,
                                               opt->second.template as<int>());
             }
-            else if (key == "restricttype")
+            else if (key == "restrict_type")
             {
                 HYPRE_MGRSetRestrictType(object,
                                          opt->second.template as<int>());
             }
-            else if (key == "levelrestricttype")
+            else if (key == "level_restrict_type")
             {
                 HYPRE_MGRSetLevelRestrictType(
                     object, opt->second.template as<std::vector<int>>().data());
             }
-            else if (key == "interptype")
+            else if (key == "interp_type")
             {
                 HYPRE_MGRSetInterpType(object, opt->second.template as<int>());
             }
-            else if (key == "levelinterptype")
+            else if (key == "level_interp_type")
             {
                 HYPRE_MGRSetLevelInterpType(
                     object, opt->second.template as<std::vector<int>>().data());
             }
-            else if (key == "numrelaxsweeps")
+            else if (key == "num_relax_sweeps")
             {
                 HYPRE_MGRSetNumRelaxSweeps(object,
                                            opt->second.template as<int>());
             }
-            else if (key == "levelnumrelaxsweeps")
+            else if (key == "level_num_relax_sweeps")
             {
                 HYPRE_MGRSetLevelNumRelaxSweeps(
                     object, opt->second.template as<std::vector<int>>().data());
             }
-            else if (key == "numinterpsweeps")
+            else if (key == "num_interp_sweeps")
             {
                 HYPRE_MGRSetNumInterpSweeps(object,
                                             opt->second.template as<int>());
             }
-            else if (key == "blockjacobiblocksize")
+            else if (key == "block_jacobi_block_size")
             {
                 HYPRE_MGRSetBlockJacobiBlockSize(
                     object, opt->second.template as<int>());
             }
-            else if (key == "globalsmoothcycle")
+            else if (key == "global_smooth_cycle")
             {
                 HYPRE_MGRSetGlobalSmoothCycle(object,
                                               opt->second.template as<int>());
             }
-            else if (key == "globalsmoothtype")
+            else if (key == "global_smooth_type")
             {
                 HYPRE_MGRSetGlobalSmoothType(object,
                                              opt->second.template as<int>());
             }
-            else if (key == "levelsmoothtype")
+            else if (key == "level_smooth_type")
             {
                 HYPRE_MGRSetLevelSmoothType(
                     object, opt->second.template as<std::vector<int>>().data());
             }
-            else if (key == "maxglobalsmoothiters")
+            else if (key == "max_global_smooth_iters")
             {
                 HYPRE_MGRSetMaxGlobalSmoothIters(
                     object, opt->second.template as<int>());
             }
-            else if (key == "levelsmoothiters")
+            else if (key == "level_smooth_iters")
             {
                 HYPRE_MGRSetLevelSmoothIters(
                     object, opt->second.template as<std::vector<int>>().data());
             }
-            else if (key == "pmaxelmts")
+            else if (key == "p_max_elmts")
             {
                 HYPRE_MGRSetPMaxElmts(object, opt->second.template as<int>());
             }
-            else if (key == "levelpmaxelmts")
+            else if (key == "level_p_max_elmts")
             {
                 HYPRE_MGRSetLevelPMaxElmts(
                     object, opt->second.template as<std::vector<int>>().data());
