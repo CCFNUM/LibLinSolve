@@ -91,6 +91,13 @@ public:
 
     void setOperators(Mat A, Mat P)
     {
+        if (!ksp_petsc_)
+        {
+            // lazy allocation of KSP: some context (e.g. Utopia FSI)
+            // require late allocation due to late determination of operators A
+            // and P
+            createKSP_();
+        }
         KSPSetOperators(ksp_petsc_, A, P);
     }
 
@@ -279,10 +286,10 @@ int ContextPETSc<N>::setOptions_(const YAML::Node* solver_yaml)
 template <size_t N>
 int ContextPETSc<N>::createKSP_()
 {
-    // Create and set the linear solver context (PETSc)
+    // Create the linear solver context (PETSc).  Operators are set by the
+    // caller via setOperators()
     ErrorWrapPetscCall(KSPCreate(this->getCommunicator(), &ksp_petsc_));
     ErrorWrapPetscCall(KSPSetFromOptions(ksp_petsc_));
-    ErrorWrapPetscCall(KSPSetOperators(ksp_petsc_, A_petsc_, A_petsc_));
     ErrorWrapPetscCall(KSPSetTolerances(ksp_petsc_,
                                         this->rtol_,
                                         this->atol_,
